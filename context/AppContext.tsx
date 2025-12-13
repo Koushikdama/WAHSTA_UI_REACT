@@ -1,0 +1,421 @@
+
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { User, Chat, Message, MessageType, ChatSettings, SecuritySettings, Call, StatusUpdate, GameConfig, Channel, ChatDocument } from '../types';
+import { useChatData } from '../hooks/useChatData';
+
+interface AppContextType {
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
+  language: string;
+  setLanguage: (lang: string) => void;
+  logoEffect: 'none' | 'shine' | 'wave';
+  setLogoEffect: (effect: 'none' | 'shine' | 'wave') => void;
+  chatSettings: ChatSettings;
+  updateChatSettings: (settings: Partial<ChatSettings>) => void;
+  securitySettings: SecuritySettings;
+  updateSecuritySettings: (settings: Partial<SecuritySettings>) => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  currentUser: User;
+  currentUserId: string;
+  users: Record<string, User>;
+  updateUserProfile: (name: string, about: string, avatar: string) => void;
+  chats: Chat[];
+  messages: Record<string, Message[]>;
+  calls: Call[];
+  statusUpdates: StatusUpdate[];
+  channels: Channel[];
+  chatDocuments: Record<string, ChatDocument[]>;
+  gameConfig?: GameConfig;
+  startChat: (contactId: string) => string;
+  createGroup: (groupName: string, participantIds: string[]) => string;
+  addMessage: (chatId: string, text: string, type: MessageType, replyToId?: string, mediaUrl?: string, duration?: string) => void;
+  deleteMessages: (chatId: string, messageIds: string[], deleteForEveryone: boolean) => void;
+  toggleArchiveChat: (chatId: string) => void;
+  togglePinMessage: (chatId: string, messageId: string) => void;
+  addReaction: (chatId: string, messageId: string, emoji: string) => void;
+  updateChatTheme: (chatId: string, color: string, type: 'outgoing' | 'incoming') => void;
+  toggleChatLock: (chatId: string) => void;
+  toggleDateLock: (chatId: string, dateString: string) => void;
+  loading: boolean;
+}
+
+const AppContext = createContext<AppContextType | undefined>(undefined);
+
+const DEFAULT_CHAT_SETTINGS: ChatSettings = {
+    fontSize: 'medium',
+    appColor: '#008069',
+    outgoingBubbleColor: '#D9FDD3',
+    incomingBubbleColor: '#FFFFFF'
+};
+
+const DEFAULT_SECURITY_SETTINGS: SecuritySettings = {
+    dailyLockPassword: '1234',
+    chatLockPassword: '0000',
+    isAppLockEnabled: false
+};
+
+const DEFAULT_USER: User = { id: 'me', name: 'User', avatar: '', about: '', phone: '' };
+
+export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { data, loading: dataLoading } = useChatData();
+
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
+  });
+
+  const [language, setLanguage] = useState<string>(() => {
+    return localStorage.getItem('language') || 'English';
+  });
+
+  const [logoEffect, setLogoEffect] = useState<'none' | 'shine' | 'wave'>('none');
+  
+  const [chatSettings, setChatSettings] = useState<ChatSettings>(() => {
+      const saved = localStorage.getItem('chatSettings');
+      return saved ? JSON.parse(saved) : DEFAULT_CHAT_SETTINGS;
+  });
+
+  const [securitySettings, setSecuritySettings] = useState<SecuritySettings>(() => {
+      const saved = localStorage.getItem('securitySettings');
+      return saved ? JSON.parse(saved) : DEFAULT_SECURITY_SETTINGS;
+  });
+
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // State for data that might be modified
+  const [currentUser, setCurrentUser] = useState<User>(DEFAULT_USER);
+  const [users, setUsers] = useState<Record<string, User>>({});
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [messages, setMessages] = useState<Record<string, Message[]>>({});
+  const [calls, setCalls] = useState<Call[]>([]);
+  const [statusUpdates, setStatusUpdates] = useState<StatusUpdate[]>([]);
+  const [channels, setChannels] = useState<Channel[]>([]);
+  const [chatDocuments, setChatDocuments] = useState<Record<string, ChatDocument[]>>({});
+
+  // Initialize data when fetched
+  useEffect(() => {
+    if (data) {
+        // Current User
+        const savedUser = localStorage.getItem('currentUser');
+        setCurrentUser(savedUser ? JSON.parse(savedUser) : data.users[data.currentUserId] || DEFAULT_USER);
+        
+        // Users (Static for now)
+        setUsers(data.users);
+
+        // Chats (LocalStorage or Data)
+        setChats(data.chats);
+        setMessages(data.messages);
+        setCalls(data.calls);
+        setStatusUpdates(data.statusUpdates);
+        setChannels(data.channels || []);
+        setChatDocuments(data.chatDocuments || {});
+    }
+  }, [data]);
+
+  // Sync Theme & CSS Vars
+  useEffect(() => {
+    localStorage.setItem('theme', theme);
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [theme]);
+
+  // Sync Chat Settings
+  useEffect(() => {
+      localStorage.setItem('chatSettings', JSON.stringify(chatSettings));
+      const root = document.documentElement;
+      root.style.setProperty('--wa-teal', chatSettings.appColor);
+      root.style.setProperty('--wa-teal-dark', chatSettings.appColor);
+      root.style.setProperty('--wa-bubble-out', chatSettings.outgoingBubbleColor);
+      root.style.setProperty('--wa-bubble-in', chatSettings.incomingBubbleColor);
+  }, [chatSettings]);
+
+  // Sync Security Settings
+  useEffect(() => {
+      localStorage.setItem('securitySettings', JSON.stringify(securitySettings));
+  }, [securitySettings]);
+
+  useEffect(() => {
+    localStorage.setItem('language', language);
+  }, [language]);
+
+  const updateChatSettings = (newSettings: Partial<ChatSettings>) => {
+      setChatSettings(prev => ({ ...prev, ...newSettings }));
+  };
+
+  const updateSecuritySettings = (newSettings: Partial<SecuritySettings>) => {
+      setSecuritySettings(prev => ({ ...prev, ...newSettings }));
+  };
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+
+  const updateUserProfile = (name: string, about: string, avatar: string) => {
+    const updated = { ...currentUser, name, about, avatar };
+    setCurrentUser(updated);
+    localStorage.setItem('currentUser', JSON.stringify(updated));
+  };
+
+  const startChat = (contactId: string): string => {
+    const existingChat = chats.find(c => c.contactId === contactId && !c.isGroup);
+    if (existingChat) return existingChat.id;
+
+    const newChatId = `c_${Date.now()}`;
+    const newChat: Chat = {
+        id: newChatId,
+        contactId: contactId,
+        unreadCount: 0,
+        isPinned: false,
+        isMuted: false,
+        isGroup: false,
+        timestamp: new Date().toISOString()
+    };
+
+    setChats([newChat, ...chats]);
+    setMessages(prev => ({ ...prev, [newChatId]: [] }));
+    
+    return newChatId;
+  };
+
+  const createGroup = (groupName: string, participantIds: string[]): string => {
+      const newChatId = `c_g_${Date.now()}`;
+      const newChat: Chat = {
+          id: newChatId,
+          contactId: '', // No single contact ID for group
+          unreadCount: 0,
+          isPinned: false,
+          isMuted: false,
+          isGroup: true,
+          groupName: groupName,
+          groupParticipants: [...participantIds, currentUser.id],
+          timestamp: new Date().toISOString()
+      };
+
+      setChats([newChat, ...chats]);
+      
+      // Add initial system message
+      const sysMsgId = `m_${Date.now()}`;
+      setMessages(prev => ({
+          ...prev,
+          [newChatId]: [{
+              id: sysMsgId,
+              chatId: newChatId,
+              senderId: 'system',
+              text: `You created group "${groupName}"`,
+              timestamp: new Date().toISOString(),
+              status: 'read',
+              type: 'text',
+              isPinned: false
+          }]
+      }));
+
+      return newChatId;
+  };
+
+  const addMessage = (chatId: string, text: string, type: MessageType, replyToId?: string, mediaUrl?: string, duration?: string) => {
+      const newMessage: Message = {
+          id: `m_${Date.now()}`,
+          chatId,
+          senderId: currentUser.id,
+          text,
+          timestamp: new Date().toISOString(),
+          status: 'sent',
+          type,
+          replyToId,
+          mediaUrl,
+          duration
+      };
+
+      setMessages(prev => ({
+          ...prev,
+          [chatId]: [...(prev[chatId] || []), newMessage]
+      }));
+
+      setChats(prev => {
+          const chatIndex = prev.findIndex(c => c.id === chatId);
+          if (chatIndex === -1) return prev;
+          
+          const updatedChat = { 
+            ...prev[chatIndex], 
+            timestamp: new Date().toISOString(), 
+            lastMessageId: newMessage.id,
+            isArchived: prev[chatIndex].isLocked ? true : false 
+          };
+          if (prev[chatIndex].isLocked) {
+              updatedChat.isArchived = true;
+          }
+          const newChats = [...prev];
+          newChats.splice(chatIndex, 1);
+          return [updatedChat, ...newChats];
+      });
+  };
+
+  const deleteMessages = (chatId: string, messageIds: string[], deleteForEveryone: boolean) => {
+    setMessages(prev => {
+      const chatMessages = prev[chatId] || [];
+      const idsSet = new Set(messageIds);
+
+      if (deleteForEveryone) {
+        return {
+          ...prev,
+          [chatId]: chatMessages.map(msg => 
+            idsSet.has(msg.id)
+              ? { 
+                  ...msg, 
+                  isDeleted: true, 
+                  text: msg.senderId === currentUser.id ? 'You deleted this message' : 'This message was deleted', 
+                  type: 'text',
+                  reactions: undefined,
+                  mediaUrl: undefined,
+                  replyToId: undefined
+                } 
+              : msg
+          )
+        };
+      } else {
+        return {
+          ...prev,
+          [chatId]: chatMessages.filter(msg => !idsSet.has(msg.id))
+        };
+      }
+    });
+  };
+
+  const toggleArchiveChat = (chatId: string) => {
+    setChats(prev => prev.map(chat => 
+      chat.id === chatId ? { ...chat, isArchived: !chat.isArchived } : chat
+    ));
+  };
+
+  const togglePinMessage = (chatId: string, messageId: string) => {
+    setMessages(prev => {
+      const chatMessages = prev[chatId] || [];
+      return {
+        ...prev,
+        [chatId]: chatMessages.map(msg => 
+          msg.id === messageId ? { ...msg, isPinned: !msg.isPinned } : msg
+        )
+      };
+    });
+  };
+
+  const addReaction = (chatId: string, messageId: string, emoji: string) => {
+    setMessages(prev => {
+      const chatMessages = prev[chatId] || [];
+      return {
+        ...prev,
+        [chatId]: chatMessages.map(msg => {
+          if (msg.id !== messageId) return msg;
+          const currentReactions = msg.reactions || {};
+          if (currentReactions[currentUser.id] === emoji) {
+            const newReactions = { ...currentReactions };
+            delete newReactions[currentUser.id];
+            return { ...msg, reactions: newReactions };
+          }
+          return {
+            ...msg,
+            reactions: { ...currentReactions, [currentUser.id]: emoji }
+          };
+        })
+      };
+    });
+  };
+
+  const updateChatTheme = (chatId: string, color: string, type: 'outgoing' | 'incoming') => {
+      setChats(prev => prev.map(c => {
+          if (c.id !== chatId) return c;
+          return type === 'outgoing' 
+            ? { ...c, themeColor: color }
+            : { ...c, incomingThemeColor: color };
+      }));
+  };
+
+  const toggleChatLock = (chatId: string) => {
+      setChats(prev => prev.map(c => {
+          if (c.id === chatId) {
+              const newLocked = !c.isLocked;
+              return { 
+                  ...c, 
+                  isLocked: newLocked, 
+                  isArchived: newLocked ? true : c.isArchived 
+              };
+          }
+          return c;
+      }));
+  };
+
+  const toggleDateLock = (chatId: string, dateString: string) => {
+      setChats(prev => prev.map(c => {
+          if (c.id !== chatId) return c;
+          const currentHidden = c.hiddenDates || [];
+          const isHidden = currentHidden.includes(dateString);
+          let newHidden;
+          if (isHidden) {
+              newHidden = currentHidden.filter(d => d !== dateString);
+          } else {
+              newHidden = [...currentHidden, dateString];
+          }
+          return { ...c, hiddenDates: newHidden };
+      }));
+  };
+
+  if (dataLoading) {
+     return (
+        <div className="flex flex-col items-center justify-center h-screen bg-[#EFEAE2] dark:bg-[#111b21] gap-4">
+             <div className="w-12 h-12 border-4 border-wa-teal border-t-transparent rounded-full animate-spin"></div>
+             <div className="text-wa-teal dark:text-gray-300 font-medium animate-pulse">Loading WhatsApp...</div>
+        </div>
+     )
+  }
+
+  return (
+    <AppContext.Provider value={{ 
+        theme, 
+        toggleTheme,
+        language,
+        setLanguage,
+        logoEffect,
+        setLogoEffect,
+        chatSettings,
+        updateChatSettings,
+        securitySettings,
+        updateSecuritySettings,
+        searchQuery, 
+        setSearchQuery, 
+        currentUser,
+        currentUserId: data?.currentUserId || 'me',
+        users,
+        updateUserProfile,
+        chats,
+        messages,
+        calls,
+        statusUpdates,
+        channels,
+        chatDocuments,
+        gameConfig: data?.gameConfig,
+        startChat,
+        createGroup,
+        addMessage,
+        deleteMessages,
+        toggleArchiveChat,
+        togglePinMessage,
+        addReaction,
+        updateChatTheme,
+        toggleChatLock,
+        toggleDateLock,
+        loading: dataLoading
+    }}>
+      {children}
+    </AppContext.Provider>
+  );
+};
+
+export const useApp = () => {
+  const context = useContext(AppContext);
+  if (!context) throw new Error('useApp must be used within AppProvider');
+  return context;
+};

@@ -1,0 +1,645 @@
+
+import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, User as UserIcon, Bell, Lock, Search, MoreVertical, Star, ThumbsUp, Trash2, LogOut, Pin, Palette, Check, Grid, Image as ImageIcon, Video as VideoIcon, FileText, BarChart2, ChevronRight, Download, Shield, EyeOff, ChevronDown, Unlock } from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { formatTimestamp } from '../utils/formatTime';
+
+const THEME_COLORS = [
+    { name: 'Default', value: '' }, 
+    { name: 'Blue', value: '#d1e4f9' },
+    { name: 'Red', value: '#fec5c5' },
+    { name: 'Purple', value: '#e2d5f7' },
+    { name: 'Orange', value: '#ffe4c4' },
+    { name: 'Teal', value: '#ccf2f4' }
+];
+
+type MediaFilterType = 'all' | 'images' | 'videos' | 'doc' | 'analysis';
+
+const GroupInfo = () => {
+  const { chatId } = useParams();
+  const navigate = useNavigate();
+  const { chats, messages, currentUser, currentUserId, users, updateChatTheme, toggleChatLock, securitySettings, chatDocuments } = useApp();
+  
+  // Tab State
+  const [topTab, setTopTab] = useState<'public' | 'private'>('public');
+  const [isPrivateUnlocked, setIsPrivateUnlocked] = useState(false);
+
+  // Auth Modal State
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authPin, setAuthPin] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [authMode, setAuthMode] = useState<'private_tab' | 'chat_lock'>('chat_lock');
+
+  // Media State
+  const [mediaFilter, setMediaFilter] = useState<MediaFilterType>('all');
+  const [isMediaDropdownOpen, setIsMediaDropdownOpen] = useState(false);
+  
+  // Media Privacy Dropdown State (Settings)
+  const [isMediaPrivacyOpen, setIsMediaPrivacyOpen] = useState(false);
+  const [mediaVisibility, setMediaVisibility] = useState('Default (Yes)');
+
+  const chat = chats.find(c => c.id === chatId);
+  if (!chat) return null;
+
+  const isGroup = chat.isGroup;
+  const contact = !isGroup ? users[chat.contactId] : null;
+  const chatMessages = messages[chat.id] || [];
+  const pinnedMessages = chatMessages.filter(m => m.isPinned);
+
+  // Documents
+  const documents = (chatId && chatDocuments[chatId]) ? chatDocuments[chatId] : [];
+
+  // Media Filtering logic
+  const images = chatMessages.filter(m => m.type === 'image');
+  const videos = chatMessages.filter(m => m.type === 'video');
+  const allMedia = [...images, ...videos].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  // Analysis Calculations
+  const textCount = chatMessages.filter(m => m.type === 'text').length;
+  const imageCount = images.length;
+  const videoCount = videos.length;
+  const docCount = documents.length;
+  
+  const stats = {
+      images: { count: imageCount, size: imageCount * 1.5, color: '#008069' },
+      videos: { count: videoCount, size: videoCount * 15, color: '#34B7F1' },
+      docs: { count: docCount, size: 4.5, color: '#FFB347' }, 
+      text: { count: textCount, size: textCount * 0.0005, color: '#8696a0' }
+  };
+  
+  const totalSize = stats.images.size + stats.videos.size + stats.docs.size + stats.text.size;
+  const totalMsgs = chatMessages.length;
+
+  const title = isGroup ? chat.groupName : contact?.name;
+  const subtitle = isGroup ? `Group · ${chat.groupParticipants?.length} participants` : contact?.phone;
+  const avatar = isGroup ? 'https://picsum.photos/300' : contact?.avatar;
+
+  // --- Handlers ---
+
+  const handleTabChange = (tab: 'public' | 'private') => {
+      if (tab === 'private' && !isPrivateUnlocked) {
+          setAuthMode('private_tab');
+          setAuthPin('');
+          setAuthError('');
+          setShowAuthModal(true);
+      } else {
+          setTopTab(tab);
+      }
+  };
+
+  const handleChatLockClick = () => {
+      setAuthMode('chat_lock');
+      setAuthPin('');
+      setAuthError('');
+      setShowAuthModal(true);
+  };
+
+  const handleAuthVerify = () => {
+      const requiredPin = authMode === 'private_tab' 
+        ? (securitySettings.dailyLockPassword || '1234') // Use Daily lock for Private Tab
+        : (securitySettings.chatLockPassword || '0000'); // Use Chat lock for locking chat
+
+      if (authPin === requiredPin) {
+          if (authMode === 'private_tab') {
+              setIsPrivateUnlocked(true);
+              setTopTab('private');
+              setShowAuthModal(false);
+          } else {
+              // Chat Lock Toggle
+              if (chatId) {
+                  toggleChatLock(chatId);
+                  setShowAuthModal(false);
+                  if (!chat.isLocked) {
+                      navigate('/chats');
+                  }
+              }
+          }
+      } else {
+          setAuthError('Incorrect PIN');
+          setAuthPin('');
+      }
+  };
+
+  // --- Render Helpers ---
+
+  const renderMediaContent = () => {
+      switch (mediaFilter) {
+          case 'all':
+              return (
+                  <div className="p-1">
+                      {allMedia.length > 0 ? (
+                        <div className="grid grid-cols-3 gap-1">
+                            {allMedia.slice(0, 9).map((m) => (
+                                <div key={m.id} className="aspect-square relative cursor-pointer bg-gray-100 dark:bg-gray-800">
+                                    {m.type === 'image' && <img src={m.mediaUrl || m.mediaUrls?.[0]} className="w-full h-full object-cover" alt="" />}
+                                    {m.type === 'video' && (
+                                        <div className="w-full h-full flex items-center justify-center bg-black/10 text-white">
+                                            <VideoIcon size={24} fill="currentColor" />
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                      ) : (
+                          <div className="py-8 text-center text-[#667781] dark:text-gray-500 text-sm">No media found</div>
+                      )}
+                      {allMedia.length > 9 && (
+                          <button className="w-full py-3 text-wa-teal text-sm font-medium hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover transition-colors">
+                              View all media
+                          </button>
+                      )}
+                  </div>
+              );
+          case 'images':
+              return (
+                  <div className="p-1">
+                      {images.length > 0 ? (
+                        <div className="grid grid-cols-3 gap-1">
+                            {images.map((m) => (
+                                <div key={m.id} className="aspect-square relative cursor-pointer">
+                                    <img src={m.mediaUrl || m.mediaUrls?.[0]} className="w-full h-full object-cover" alt="" />
+                                </div>
+                            ))}
+                        </div>
+                      ) : (
+                        <div className="py-8 text-center text-[#667781] dark:text-gray-500 text-sm">No images found</div>
+                      )}
+                  </div>
+              );
+          case 'videos':
+              return (
+                  <div className="p-1">
+                      {videos.length > 0 ? (
+                        <div className="grid grid-cols-3 gap-1">
+                            {videos.map((m) => (
+                                <div key={m.id} className="aspect-square relative cursor-pointer bg-black/80 flex items-center justify-center text-white">
+                                    <VideoIcon size={32} />
+                                    <span className="absolute bottom-1 right-1 text-[10px] bg-black/60 px-1 rounded">{m.duration}</span>
+                                </div>
+                            ))}
+                        </div>
+                      ) : (
+                        <div className="py-8 text-center text-[#667781] dark:text-gray-500 text-sm">No videos found</div>
+                      )}
+                  </div>
+              );
+          case 'doc':
+               return (
+                   <div className="flex flex-col">
+                       {documents.length > 0 ? documents.map(doc => (
+                           <div key={doc.id} className="flex items-center gap-3 p-3 hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover cursor-pointer border-b border-gray-100 dark:border-gray-800 last:border-0">
+                               <div className="w-10 h-10 bg-red-100 dark:bg-red-900/20 rounded-lg flex items-center justify-center text-red-500">
+                                   <FileText size={20} />
+                               </div>
+                               <div className="flex-1 min-w-0">
+                                   <h4 className="text-[#111b21] dark:text-gray-100 text-sm font-medium truncate">{doc.name}</h4>
+                                   <p className="text-[#667781] dark:text-gray-500 text-xs">{doc.size} • {doc.date} • {doc.type.toUpperCase()}</p>
+                               </div>
+                               <Download size={18} className="text-[#667781] dark:text-gray-500" />
+                           </div>
+                       )) : (
+                            <div className="py-8 text-center text-[#667781] dark:text-gray-500 text-sm">No documents found</div>
+                       )}
+                   </div>
+               );
+          case 'analysis':
+               const chartData = [
+                  { label: 'Videos', value: stats.videos.size, color: stats.videos.color },
+                  { label: 'Images', value: stats.images.size, color: stats.images.color },
+                  { label: 'Docs', value: stats.docs.size, color: stats.docs.color },
+                  { label: 'Text', value: stats.text.size, color: stats.text.color }
+               ];
+               const R = 36;
+               const C = 2 * Math.PI * R;
+               let currentOffset = 0;
+
+               return (
+                   <div className="p-5">
+                       <div className="flex flex-col items-center mb-6">
+                           <h4 className="text-sm font-medium text-[#111b21] dark:text-gray-100 mb-4 self-start">Storage Usage</h4>
+                           <div className="relative w-48 h-48">
+                               <svg viewBox="0 0 100 100" className="transform -rotate-90 w-full h-full">
+                                   <circle cx="50" cy="50" r={R} stroke="#e9edef" strokeWidth="12" fill="none" className="dark:stroke-gray-700" />
+                                   {totalSize > 0 && chartData.map((item, i) => {
+                                       const percent = item.value / totalSize;
+                                       const dashArray = `${percent * C} ${C}`;
+                                       const dashOffset = -currentOffset;
+                                       currentOffset += percent * C;
+                                       return (
+                                           <circle 
+                                               key={item.label}
+                                               cx="50" cy="50" r={R}
+                                               fill="none"
+                                               stroke={item.color}
+                                               strokeWidth="12"
+                                               strokeDasharray={dashArray}
+                                               strokeDashoffset={dashOffset}
+                                               className="transition-all duration-500 ease-out"
+                                           />
+                                       );
+                                   })}
+                               </svg>
+                               <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                   <span className="text-3xl font-light text-[#111b21] dark:text-gray-100">{totalSize.toFixed(1)}</span>
+                                   <span className="text-xs text-[#667781] dark:text-gray-500 uppercase font-medium">MB Used</span>
+                               </div>
+                           </div>
+                       </div>
+                       
+                       <div className="grid grid-cols-2 gap-4 mb-6 px-2">
+                            {chartData.map(item => (
+                                <div key={item.label} className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                                    <div className="flex flex-col">
+                                        <span className="text-sm text-[#111b21] dark:text-gray-200">{item.label}</span>
+                                        <span className="text-xs text-[#667781] dark:text-gray-500">{item.value.toFixed(1)} MB</span>
+                                    </div>
+                                </div>
+                            ))}
+                       </div>
+
+                       <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
+                           <h4 className="text-sm font-medium text-[#111b21] dark:text-gray-100 mb-3">Activity Breakdown</h4>
+                           <div className="space-y-3">
+                               <div className="flex justify-between items-center text-sm">
+                                    <span className="text-[#667781] dark:text-gray-400">Total Messages</span>
+                                    <span className="font-medium text-[#111b21] dark:text-gray-100">{totalMsgs}</span>
+                               </div>
+                               <div className="flex justify-between items-center text-sm">
+                                    <span className="text-[#667781] dark:text-gray-400">Text Messages</span>
+                                    <span className="font-medium text-[#111b21] dark:text-gray-100">{stats.text.count}</span>
+                               </div>
+                               <div className="flex justify-between items-center text-sm">
+                                    <span className="text-[#667781] dark:text-gray-400">Media Files</span>
+                                    <span className="font-medium text-[#111b21] dark:text-gray-100">{stats.images.count + stats.videos.count}</span>
+                               </div>
+                           </div>
+                       </div>
+                   </div>
+               );
+          default:
+              return null;
+      }
+  };
+
+  const MediaDropdownOption = ({ type, label, icon: Icon }: { type: MediaFilterType, label: string, icon: any }) => (
+      <button 
+          onClick={() => { setMediaFilter(type); setIsMediaDropdownOpen(false); }}
+          className={`flex items-center gap-3 w-full px-4 py-3 hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover transition-colors ${mediaFilter === type ? 'text-wa-teal bg-gray-50 dark:bg-white/5' : 'text-[#111b21] dark:text-gray-100'}`}
+      >
+          <Icon size={18} />
+          <span className="text-sm font-medium">{label}</span>
+          {mediaFilter === type && <Check size={16} className="ml-auto" />}
+      </button>
+  );
+
+  const renderMediaSection = (isPrivateContext: boolean) => (
+      <div className="bg-white dark:bg-wa-dark-header mb-3 shadow-sm transition-colors overflow-hidden">
+           <div className="px-4 py-3 flex items-center justify-between border-b border-gray-100 dark:border-gray-800">
+                <div className="flex flex-col">
+                    <h3 className="text-sm text-[#667781] dark:text-gray-400 font-medium">
+                        {isPrivateContext ? 'Private Media & Docs' : 'Media, Docs & Analysis'}
+                    </h3>
+                    <p className="text-[10px] text-gray-400">
+                        {isPrivateContext ? 'Secured content only' : 'Shared in this chat'}
+                    </p>
+                </div>
+
+                {/* Dropdown Trigger */}
+                <div className="relative">
+                    <button 
+                        onClick={() => setIsMediaDropdownOpen(!isMediaDropdownOpen)}
+                        className="flex items-center gap-2 bg-gray-100 dark:bg-wa-dark-paper px-3 py-1.5 rounded-lg text-sm font-medium text-[#111b21] dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-wa-dark-hover transition-colors"
+                    >
+                        <span className="capitalize">{mediaFilter}</span>
+                        <ChevronDown size={14} className={`transition-transform duration-200 ${isMediaDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {isMediaDropdownOpen && (
+                        <>
+                            <div className="fixed inset-0 z-30" onClick={() => setIsMediaDropdownOpen(false)}></div>
+                            <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-wa-dark-paper rounded-lg shadow-xl border border-wa-border dark:border-gray-700 z-40 overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                                <MediaDropdownOption type="all" label="All Media" icon={Grid} />
+                                <MediaDropdownOption type="images" label="Images" icon={ImageIcon} />
+                                <MediaDropdownOption type="videos" label="Videos" icon={VideoIcon} />
+                                <MediaDropdownOption type="doc" label="Documents" icon={FileText} />
+                                <MediaDropdownOption type="analysis" label="Analysis" icon={BarChart2} />
+                            </div>
+                        </>
+                    )}
+                </div>
+           </div>
+           
+           {/* Content */}
+           <div className="min-h-[150px]">
+               {renderMediaContent()}
+           </div>
+           
+           {mediaFilter !== 'analysis' && !isPrivateContext && (
+                <div className="border-t border-gray-100 dark:border-gray-800">
+                    <div 
+                        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover"
+                        onClick={() => setIsMediaPrivacyOpen(!isMediaPrivacyOpen)}
+                    >
+                        <span className="text-sm text-[#111b21] dark:text-gray-100">Media privacy</span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-[#667781] dark:text-gray-500">{mediaVisibility}</span>
+                            <ChevronRight size={16} className={`text-[#667781] dark:text-gray-400 transition-transform duration-200 ${isMediaPrivacyOpen ? 'rotate-90' : ''}`} />
+                        </div>
+                    </div>
+                    
+                    {isMediaPrivacyOpen && (
+                        <div className="px-6 pb-4 animate-in slide-in-from-top-2 duration-200">
+                             <p className="text-xs text-[#667781] dark:text-gray-500 mb-3 leading-relaxed">
+                                 Show newly downloaded media from this chat in your device's gallery?
+                             </p>
+                             <div className="space-y-3 bg-gray-50 dark:bg-white/5 p-3 rounded-lg">
+                                 {['Default (Yes)', 'Yes', 'No'].map(opt => (
+                                     <div key={opt} className="flex items-center gap-3 cursor-pointer" onClick={() => setMediaVisibility(opt)}>
+                                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${mediaVisibility === opt ? 'border-wa-teal' : 'border-gray-400 dark:border-gray-500'}`}>
+                                             {mediaVisibility === opt && <div className="w-2.5 h-2.5 rounded-full bg-wa-teal"></div>}
+                                         </div>
+                                         <span className="text-sm text-[#111b21] dark:text-gray-100">{opt}</span>
+                                     </div>
+                                 ))}
+                             </div>
+                        </div>
+                    )}
+                </div>
+           )}
+      </div>
+  );
+
+  return (
+    <div className="flex flex-col h-full bg-[#f0f2f5] dark:bg-[#0b141a] overflow-y-auto relative">
+      
+      {/* AUTH MODAL */}
+      {showAuthModal && createPortal(
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+              <div className="bg-white dark:bg-wa-dark-paper rounded-lg shadow-xl w-full max-w-xs p-6 flex flex-col items-center">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 text-white ${authMode === 'private_tab' ? 'bg-blue-500' : 'bg-wa-teal'}`}>
+                      {authMode === 'private_tab' ? <Shield size={24} /> : <Lock size={24} />}
+                  </div>
+                  <h3 className="text-lg font-medium text-[#111b21] dark:text-gray-100 mb-2">
+                      {authMode === 'private_tab' ? 'Private Access' : (chat.isLocked ? 'Unlock Chat' : 'Lock Chat')}
+                  </h3>
+                  <p className="text-sm text-[#667781] dark:text-gray-400 mb-6 text-center">
+                      Enter {authMode === 'private_tab' ? 'App Lock' : 'Chat Lock'} PIN
+                  </p>
+                  
+                  <input 
+                      type="password" 
+                      maxLength={4}
+                      value={authPin}
+                      onChange={(e) => {
+                          setAuthPin(e.target.value);
+                          setAuthError('');
+                      }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAuthVerify()}
+                      className="w-full text-center text-2xl tracking-[0.5em] font-medium py-2 border-b-2 border-wa-teal bg-transparent outline-none mb-2 text-[#111b21] dark:text-gray-100 placeholder-transparent"
+                      placeholder="****"
+                      autoFocus
+                  />
+                  
+                  {authError && <p className="text-red-500 text-xs mb-4">{authError}</p>}
+
+                  <div className="flex gap-3 w-full mt-4">
+                      <button onClick={() => setShowAuthModal(false)} className="flex-1 py-2 text-wa-teal font-medium hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover rounded-full transition-colors">
+                          Cancel
+                      </button>
+                      <button onClick={handleAuthVerify} className="flex-1 py-2 bg-wa-teal text-white font-medium rounded-full shadow-sm hover:shadow-md transition-all">
+                          Verify
+                      </button>
+                  </div>
+              </div>
+          </div>,
+          document.body
+      )}
+
+      {/* Header */}
+      <div className="h-[60px] bg-white dark:bg-wa-dark-header flex items-center px-4 shrink-0 shadow-sm sticky top-0 z-10 transition-colors">
+        <button onClick={() => navigate(`/chat/${chatId}`)} className="mr-3 text-wa-gray dark:text-gray-400">
+          <ArrowLeft size={24} />
+        </button>
+        <h2 className="text-lg text-[#111b21] dark:text-gray-100 font-medium">
+           {isGroup ? 'Group Info' : 'Contact Info'}
+        </h2>
+      </div>
+
+      <div className="flex-1 pb-10">
+          <div className="bg-white dark:bg-wa-dark-header flex flex-col items-center py-6 mb-3 shadow-sm transition-colors">
+               <img src={avatar} alt="Avatar" className="w-28 h-28 rounded-full object-cover mb-4 shadow-sm" />
+               <h1 className="text-2xl text-[#111b21] dark:text-gray-100 font-normal mb-1">{title}</h1>
+               <p className="text-[#667781] dark:text-gray-500 text-base mb-4">{subtitle}</p>
+               
+               {/* Public / Private Toggle */}
+               <div className="flex p-1 bg-gray-100 dark:bg-wa-dark-paper rounded-lg w-64 shadow-inner">
+                   <button 
+                       onClick={() => handleTabChange('public')}
+                       className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${topTab === 'public' ? 'bg-white dark:bg-wa-dark-header text-wa-teal shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+                   >
+                       Public
+                   </button>
+                   <button 
+                       onClick={() => handleTabChange('private')}
+                       className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-1.5 ${topTab === 'private' ? 'bg-white dark:bg-wa-dark-header text-wa-teal shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+                   >
+                       Private
+                       {!isPrivateUnlocked && <Lock size={12} />}
+                   </button>
+               </div>
+          </div>
+
+          {/* PUBLIC TAB CONTENT */}
+          {topTab === 'public' && (
+              <>
+                <div className="bg-white dark:bg-wa-dark-header mb-3 shadow-sm transition-colors">
+                    <div className="flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover">
+                        <div className="w-6 flex justify-center text-wa-gray dark:text-gray-400"><Bell size={22} /></div>
+                        <div className="flex-1">
+                            <h3 className="text-base text-[#111b21] dark:text-gray-100">Notifications</h3>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover">
+                        <div className="w-6 flex justify-center text-wa-gray dark:text-gray-400"><Search size={22} /></div>
+                        <div className="flex-1">
+                            <h3 className="text-base text-[#111b21] dark:text-gray-100">Search messages</h3>
+                        </div>
+                    </div>
+                </div>
+                
+                {renderMediaSection(false)}
+
+                <div className="bg-white dark:bg-wa-dark-header mb-3 shadow-sm transition-colors px-6 py-6">
+                    {/* Theme Selectors */}
+                    <div className="mb-8 mt-2">
+                        <div className="flex items-center gap-4 mb-4">
+                            <div className="w-6 flex justify-center text-wa-gray dark:text-gray-400">
+                                <Palette size={22} />
+                            </div>
+                            <h3 className="text-base text-[#111b21] dark:text-gray-100 font-medium">My Message Theme</h3>
+                        </div>
+                        <div className="flex gap-4 pl-10 overflow-x-auto no-scrollbar pb-2 -mr-6 pr-6">
+                            {THEME_COLORS.map((color) => {
+                                const isSelected = (chat.themeColor || '') === color.value;
+                                return (
+                                    <button 
+                                        key={color.name}
+                                        onClick={() => chatId && updateChatTheme(chatId, color.value, 'outgoing')}
+                                        className={`w-10 h-10 shrink-0 rounded-full border border-gray-200 dark:border-gray-600 flex items-center justify-center relative shadow-sm transition-transform hover:scale-105 ${isSelected ? 'ring-2 ring-wa-teal ring-offset-2 dark:ring-offset-wa-dark-header' : ''}`}
+                                        style={{ backgroundColor: color.value || '#D9FDD3' }} 
+                                        title={color.name}
+                                    >
+                                        {isSelected && <Check size={16} className="text-black/60" />}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="mb-8">
+                        <div className="flex items-center gap-4 mb-4">
+                            <div className="w-6 flex justify-center text-wa-gray dark:text-gray-400">
+                                <Palette size={22} />
+                            </div>
+                            <h3 className="text-base text-[#111b21] dark:text-gray-100 font-medium">Sender Message Theme</h3>
+                        </div>
+                        <div className="flex gap-4 pl-10 overflow-x-auto no-scrollbar pb-2 -mr-6 pr-6">
+                            {THEME_COLORS.map((color) => {
+                                const isSelected = (chat.incomingThemeColor || '') === color.value;
+                                return (
+                                    <button 
+                                        key={color.name}
+                                        onClick={() => chatId && updateChatTheme(chatId, color.value, 'incoming')}
+                                        className={`w-10 h-10 shrink-0 rounded-full border border-gray-200 dark:border-gray-600 flex items-center justify-center relative shadow-sm transition-transform hover:scale-105 ${isSelected ? 'ring-2 ring-wa-teal ring-offset-2 dark:ring-offset-wa-dark-header' : ''}`}
+                                        style={{ backgroundColor: color.value || '#FFFFFF' }} 
+                                        title={color.name}
+                                    >
+                                        {isSelected && <Check size={16} className="text-black/60" />}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 cursor-pointer py-2" onClick={handleChatLockClick}>
+                        <div className="w-6 flex justify-center text-wa-gray dark:text-gray-400"><Lock size={22} /></div>
+                        <div className="flex-1">
+                            <h3 className="text-base text-[#111b21] dark:text-gray-100">Chat Lock</h3>
+                            <p className="text-xs text-[#667781] dark:text-gray-500">Lock and hide this chat in Archive</p>
+                        </div>
+                        <div className={`w-10 h-6 rounded-full p-1 transition-colors ${chat.isLocked ? 'bg-wa-teal' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                            <div className={`bg-white w-4 h-4 rounded-full shadow-sm transition-transform ${chat.isLocked ? 'translate-x-4' : ''}`}></div>
+                        </div>
+                    </div>
+                </div>
+
+                {pinnedMessages.length > 0 && (
+                    <div className="bg-white dark:bg-wa-dark-header mb-3 shadow-sm transition-colors">
+                        <div className="px-6 py-3 text-sm text-wa-teal dark:text-wa-teal font-medium uppercase">
+                            {pinnedMessages.length} Pinned Messages
+                        </div>
+                        {pinnedMessages.map(msg => (
+                            <div key={msg.id} className="px-6 py-3 hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover cursor-pointer border-t border-wa-border dark:border-wa-dark-border">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-xs font-bold text-wa-gray dark:text-gray-400">
+                                        {msg.senderId === currentUserId ? 'You' : users[msg.senderId]?.name}
+                                    </span>
+                                    <span className="text-xs text-wa-gray dark:text-gray-500">
+                                        {formatTimestamp(msg.timestamp)}
+                                    </span>
+                                </div>
+                                <p className="text-sm text-[#111b21] dark:text-gray-200 line-clamp-2">{msg.text}</p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {!isGroup && contact?.about && (
+                    <div className="bg-white dark:bg-wa-dark-header mb-3 shadow-sm px-6 py-4 transition-colors">
+                        <h3 className="text-sm text-wa-teal dark:text-wa-teal font-medium mb-1">About</h3>
+                        <p className="text-base text-[#111b21] dark:text-gray-100">{contact.about}</p>
+                    </div>
+                )}
+
+                {isGroup && (
+                    <div className="bg-white dark:bg-wa-dark-header mb-3 shadow-sm transition-colors">
+                        <div className="px-6 py-3 text-sm text-[#667781] dark:text-gray-400">
+                            {chat.groupParticipants?.length} participants
+                        </div>
+                        {chat.groupParticipants?.map(pid => {
+                            const user = users[pid];
+                            if (!user) return null;
+                            return (
+                                <div key={pid} className="flex items-center gap-4 px-6 py-3 hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover cursor-pointer">
+                                    <img src={user.avatar} alt="" className="w-10 h-10 rounded-full" />
+                                    <div className="flex-1">
+                                        <h3 className="text-base text-[#111b21] dark:text-gray-100 flex justify-between">
+                                            {user.name}
+                                            {pid === 'u5' && <span className="bg-[#dcf8c6] dark:bg-[#005c4b] text-xs px-2 rounded-md flex items-center">Group Admin</span>}
+                                        </h3>
+                                        <p className="text-xs text-[#667781] dark:text-gray-500">{user.about}</p>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                )}
+
+                <div className="bg-white dark:bg-wa-dark-header shadow-sm transition-colors">
+                    <div className="flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover text-red-500">
+                        <div className="w-6 flex justify-center"><LogOut size={22} /></div>
+                        <h3 className="text-base">Exit {isGroup ? 'group' : 'chat'}</h3>
+                    </div>
+                    <div className="flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover text-red-500">
+                        <div className="w-6 flex justify-center"><Trash2 size={22} /></div>
+                        <h3 className="text-base">Report {isGroup ? 'group' : 'contact'}</h3>
+                    </div>
+                </div>
+              </>
+          )}
+
+          {/* PRIVATE TAB CONTENT */}
+          {topTab === 'private' && (
+              <div className="animate-in fade-in slide-in-from-right-2 duration-200">
+                  <div className="mx-4 mb-4 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30 flex gap-3">
+                       <Shield size={24} className="text-blue-500 shrink-0" />
+                       <div className="flex-col">
+                           <h3 className="text-sm font-bold text-blue-700 dark:text-blue-400 mb-1">Private Secure Zone</h3>
+                           <p className="text-xs text-blue-600 dark:text-blue-300">
+                               Items in this tab are encrypted and require authentication to view.
+                           </p>
+                       </div>
+                  </div>
+
+                  {renderMediaSection(true)}
+
+                  <div className="bg-white dark:bg-wa-dark-header mb-3 shadow-sm transition-colors px-6 py-4 mt-3">
+                      <div className="flex items-center gap-4 opacity-50">
+                          <div className="w-6 flex justify-center text-wa-gray dark:text-gray-400"><EyeOff size={22} /></div>
+                          <div className="flex-1">
+                              <h3 className="text-base text-[#111b21] dark:text-gray-100">Hidden Messages</h3>
+                              <p className="text-xs text-[#667781] dark:text-gray-500">0 hidden messages in this chat</p>
+                          </div>
+                      </div>
+                  </div>
+                  
+                  <div className="bg-white dark:bg-wa-dark-header shadow-sm transition-colors px-6 py-4">
+                      <button 
+                        onClick={() => { setIsPrivateUnlocked(false); setTopTab('public'); }}
+                        className="w-full py-2 border border-wa-teal text-wa-teal rounded-full font-medium text-sm hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover transition-colors"
+                      >
+                          Lock Private View
+                      </button>
+                  </div>
+              </div>
+          )}
+      </div>
+    </div>
+  );
+};
+
+export default GroupInfo;

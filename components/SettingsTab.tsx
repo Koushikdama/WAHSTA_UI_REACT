@@ -1,0 +1,520 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Key, User as UserIcon, Bell, Database, HelpCircle, Heart, Moon, Sun, Edit2, Check, X, Camera, Globe, Sparkles, MessageCircle, ArrowLeft, Palette, Type, Lock, Shield } from 'lucide-react';
+import { useApp } from '../context/AppContext';
+
+const LANGUAGES = ['English', 'Spanish', 'French', 'German', 'Hindi', 'Portuguese', 'Russian', 'Chinese'];
+const LOGO_EFFECTS = [
+    { id: 'none', label: 'None' },
+    { id: 'shine', label: 'Shine' },
+    { id: 'wave', label: 'Wave' }
+];
+
+const APP_COLORS = ['#008069', '#075E54', '#3b82f6', '#8b5cf6', '#ef4444', '#f97316', '#14b8a6'];
+const BUBBLE_COLORS = ['#D9FDD3', '#FFFFFF', '#d1e4f9', '#fec5c5', '#e2d5f7', '#ffe4c4', '#ccf2f4', '#202c33', '#005c4b'];
+
+const PasswordSettingsScreen = ({ onClose }: { onClose: () => void }) => {
+    const { securitySettings, updateSecuritySettings } = useApp();
+    const [editingType, setEditingType] = useState<'daily' | 'chat' | null>(null);
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [message, setMessage] = useState('');
+
+    const handleSave = () => {
+        if (newPassword.length < 4) {
+            setMessage('Password must be at least 4 characters');
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            setMessage('Passwords do not match');
+            return;
+        }
+
+        if (editingType === 'daily') {
+            updateSecuritySettings({ dailyLockPassword: newPassword });
+            setMessage('App Lock Password updated!');
+        } else if (editingType === 'chat') {
+            updateSecuritySettings({ chatLockPassword: newPassword });
+            setMessage('Chat Lock Password updated!');
+        }
+
+        setTimeout(() => {
+            setEditingType(null);
+            setNewPassword('');
+            setConfirmPassword('');
+            setMessage('');
+        }, 1000);
+    };
+
+    return (
+        <div className="absolute inset-0 z-20 bg-white dark:bg-wa-dark-bg flex flex-col animate-in slide-in-from-right duration-200">
+             {/* Header */}
+            <div className="h-[60px] bg-wa-teal dark:bg-wa-dark-header flex items-center px-4 shrink-0 shadow-sm text-white">
+                <button onClick={onClose} className="mr-3 p-1 rounded-full active:bg-white/10">
+                    <ArrowLeft size={24} />
+                </button>
+                <h2 className="text-xl font-medium">Manage Passwords</h2>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+                {editingType ? (
+                    <div className="bg-white dark:bg-wa-dark-paper p-6 rounded-lg shadow-sm border border-wa-border dark:border-gray-700">
+                        <h3 className="text-lg font-medium text-[#111b21] dark:text-gray-100 mb-6">
+                            Set {editingType === 'daily' ? 'App Lock' : 'Chat Lock'} Password
+                        </h3>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm text-[#54656f] dark:text-gray-400 mb-1">New Password</label>
+                                <input 
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    className="w-full p-3 bg-wa-grayBg dark:bg-wa-dark-input rounded-lg outline-none text-[#111b21] dark:text-gray-100 border border-transparent focus:border-wa-teal transition-colors"
+                                    placeholder="Enter new PIN"
+                                    autoFocus
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-[#54656f] dark:text-gray-400 mb-1">Confirm Password</label>
+                                <input 
+                                    type="password"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    className="w-full p-3 bg-wa-grayBg dark:bg-wa-dark-input rounded-lg outline-none text-[#111b21] dark:text-gray-100 border border-transparent focus:border-wa-teal transition-colors"
+                                    placeholder="Confirm new PIN"
+                                />
+                            </div>
+                        </div>
+
+                        {message && <p className={`mt-3 text-sm font-medium ${message.includes('updated') ? 'text-green-500' : 'text-red-500'}`}>{message}</p>}
+
+                        <div className="flex gap-3 mt-8">
+                             <button 
+                                onClick={() => { setEditingType(null); setMessage(''); setNewPassword(''); setConfirmPassword(''); }}
+                                className="flex-1 py-2.5 text-wa-teal font-medium hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover rounded-full transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={handleSave}
+                                className="flex-1 py-2.5 bg-wa-teal text-white font-medium rounded-full shadow-sm hover:shadow-md transition-all"
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-6">
+                        {/* Daily Lock Card */}
+                        <div className="bg-white dark:bg-wa-dark-paper rounded-lg shadow-sm border border-wa-border dark:border-gray-700 overflow-hidden">
+                            <div className="p-4 flex items-center gap-4 border-b border-gray-100 dark:border-gray-700">
+                                <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-500">
+                                    <Shield size={20} />
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="text-base font-medium text-[#111b21] dark:text-gray-100">App Lock (Daily)</h3>
+                                    <p className="text-xs text-[#667781] dark:text-gray-500">Passcode required to open WhatsApp</p>
+                                </div>
+                            </div>
+                            <div className="p-4 bg-gray-50 dark:bg-white/5 flex justify-between items-center">
+                                <div className="text-sm text-[#111b21] dark:text-gray-300">
+                                    Status: <span className="font-medium text-wa-teal">{securitySettings.dailyLockPassword ? 'Set' : 'Not Set'}</span>
+                                </div>
+                                <button 
+                                    onClick={() => setEditingType('daily')}
+                                    className="text-sm font-medium text-wa-teal hover:underline"
+                                >
+                                    Change
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Chat Lock Card */}
+                        <div className="bg-white dark:bg-wa-dark-paper rounded-lg shadow-sm border border-wa-border dark:border-gray-700 overflow-hidden">
+                            <div className="p-4 flex items-center gap-4 border-b border-gray-100 dark:border-gray-700">
+                                <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-500">
+                                    <Lock size={20} />
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="text-base font-medium text-[#111b21] dark:text-gray-100">Chat Lock</h3>
+                                    <p className="text-xs text-[#667781] dark:text-gray-500">Passcode to access locked chats</p>
+                                </div>
+                            </div>
+                            <div className="p-4 bg-gray-50 dark:bg-white/5 flex justify-between items-center">
+                                <div className="text-sm text-[#111b21] dark:text-gray-300">
+                                    Status: <span className="font-medium text-wa-teal">{securitySettings.chatLockPassword ? 'Set' : 'Not Set'}</span>
+                                </div>
+                                <button 
+                                    onClick={() => setEditingType('chat')}
+                                    className="text-sm font-medium text-wa-teal hover:underline"
+                                >
+                                    Change
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div className="text-center p-4">
+                            <p className="text-xs text-[#667781] dark:text-gray-500">
+                                These passwords are saved locally on your device for this demo.
+                            </p>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const ChatSettingsScreen = ({ onClose }: { onClose: () => void }) => {
+    const { chatSettings, updateChatSettings } = useApp();
+
+    const getFontSizeClass = () => {
+        switch(chatSettings.fontSize) {
+            case 'small': return 'text-[13px]';
+            case 'large': return 'text-[17px]';
+            default: return 'text-[15px]';
+        }
+    };
+
+    return (
+        <div className="absolute inset-0 z-20 bg-white dark:bg-wa-dark-bg flex flex-col animate-in slide-in-from-right duration-200">
+            {/* Header */}
+            <div className="h-[60px] bg-wa-teal dark:bg-wa-dark-header flex items-center px-4 shrink-0 shadow-sm text-white">
+                <button onClick={onClose} className="mr-3 p-1 rounded-full active:bg-white/10">
+                    <ArrowLeft size={24} />
+                </button>
+                <h2 className="text-xl font-medium">Chat Settings</h2>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+                {/* Preview Section */}
+                <div className="mb-8">
+                    <h3 className="text-sm font-medium text-wa-teal mb-3 uppercase px-2">Preview</h3>
+                    <div 
+                        className="rounded-lg shadow-md overflow-hidden bg-wa-bg relative h-64 border border-wa-border dark:border-gray-700 flex flex-col p-4"
+                        style={{ backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")', backgroundRepeat: 'repeat', backgroundSize: '400px' }}
+                    >
+                        <div className="absolute inset-0 bg-white/40 dark:bg-black/40 pointer-events-none"></div>
+                        
+                        {/* Fake Messages */}
+                        <div className="relative z-10 flex flex-col gap-3 justify-end h-full">
+                            <div className={`self-start max-w-[80%] p-2 rounded-lg rounded-tl-none shadow-sm ${getFontSizeClass()}`}
+                                 style={{ backgroundColor: chatSettings.incomingBubbleColor, color: '#111b21' }}>
+                                Hi there! How does this look?
+                                <span className="text-[10px] text-gray-500 block text-right mt-1">10:00 AM</span>
+                            </div>
+                            <div className={`self-end max-w-[80%] p-2 rounded-lg rounded-tr-none shadow-sm ${getFontSizeClass()}`}
+                                 style={{ backgroundColor: chatSettings.outgoingBubbleColor, color: '#111b21' }}>
+                                This customization is amazing! 🔥
+                                <span className="text-[10px] text-gray-500 block text-right mt-1 flex justify-end gap-1 items-center">10:01 AM <Check size={14} className="text-blue-500" /></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Font Size */}
+                <div className="mb-8 px-2">
+                    <div className="flex items-center gap-2 mb-3">
+                         <Type size={20} className="text-wa-gray" />
+                         <h3 className="text-base font-medium text-[#111b21] dark:text-gray-100">Font Size</h3>
+                    </div>
+                    <div className="flex bg-wa-grayBg dark:bg-wa-dark-header rounded-lg p-1">
+                        {['small', 'medium', 'large'].map((size) => (
+                            <button
+                                key={size}
+                                onClick={() => updateChatSettings({ fontSize: size as any })}
+                                className={`flex-1 py-2 rounded-md text-sm capitalize transition-all ${chatSettings.fontSize === size ? 'bg-white dark:bg-wa-dark-paper shadow-sm text-wa-teal font-medium' : 'text-gray-500'}`}
+                            >
+                                {size}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* App Color */}
+                <div className="mb-8 px-2">
+                    <div className="flex items-center gap-2 mb-3">
+                         <Palette size={20} className="text-wa-gray" />
+                         <h3 className="text-base font-medium text-[#111b21] dark:text-gray-100">App Color</h3>
+                    </div>
+                    <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
+                        {APP_COLORS.map(color => (
+                            <button
+                                key={color}
+                                onClick={() => updateChatSettings({ appColor: color })}
+                                className={`w-10 h-10 rounded-full shrink-0 border-2 transition-transform hover:scale-110 ${chatSettings.appColor === color ? 'border-black dark:border-white' : 'border-transparent'}`}
+                                style={{ backgroundColor: color }}
+                            />
+                        ))}
+                    </div>
+                </div>
+
+                 {/* Bubble Colors */}
+                 <div className="mb-8 px-2">
+                    <h3 className="text-base font-medium text-[#111b21] dark:text-gray-100 mb-3">Incoming Bubble Color</h3>
+                    <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar mb-6">
+                        {BUBBLE_COLORS.map(color => (
+                            <button
+                                key={color}
+                                onClick={() => updateChatSettings({ incomingBubbleColor: color })}
+                                className={`w-10 h-10 rounded-full shrink-0 border-2 transition-transform hover:scale-110 shadow-sm ${chatSettings.incomingBubbleColor === color ? 'border-wa-teal' : 'border-gray-200 dark:border-gray-600'}`}
+                                style={{ backgroundColor: color }}
+                            />
+                        ))}
+                    </div>
+
+                    <h3 className="text-base font-medium text-[#111b21] dark:text-gray-100 mb-3">Outgoing Bubble Color</h3>
+                    <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
+                        {BUBBLE_COLORS.map(color => (
+                            <button
+                                key={color}
+                                onClick={() => updateChatSettings({ outgoingBubbleColor: color })}
+                                className={`w-10 h-10 rounded-full shrink-0 border-2 transition-transform hover:scale-110 shadow-sm ${chatSettings.outgoingBubbleColor === color ? 'border-wa-teal' : 'border-gray-200 dark:border-gray-600'}`}
+                                style={{ backgroundColor: color }}
+                            />
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const SettingsTab = () => {
+  const navigate = useNavigate();
+  const { theme, toggleTheme, currentUser, updateUserProfile, language, setLanguage, logoEffect, setLogoEffect } = useApp();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(currentUser.name);
+  const [editAbout, setEditAbout] = useState(currentUser.about);
+  const [editAvatar, setEditAvatar] = useState(currentUser.avatar);
+  const [showLangModal, setShowLangModal] = useState(false);
+  const [showEffectModal, setShowEffectModal] = useState(false);
+  const [showChatSettings, setShowChatSettings] = useState(false);
+  const [showPasswordSettings, setShowPasswordSettings] = useState(false);
+
+  const handleSaveProfile = () => {
+    if (editName.trim()) {
+        updateUserProfile(editName, editAbout, editAvatar);
+        setIsEditing(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditName(currentUser.name);
+    setEditAbout(currentUser.about);
+    setEditAvatar(currentUser.avatar);
+    setIsEditing(false);
+  };
+
+  const SettingItem = ({ icon, label, sub, action, onClick }: { icon: React.ReactNode, label: string, sub?: string, action?: React.ReactNode, onClick?: () => void }) => (
+      <div onClick={onClick} className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover active:bg-[#e9edef] dark:active:bg-wa-dark-paper transition-colors">
+          <div className="text-[#667781] dark:text-gray-400">{icon}</div>
+          <div className="flex-1">
+              <h3 className="text-[16px] text-[#111b21] dark:text-gray-200">{label}</h3>
+              {sub && <p className="text-[13px] text-[#667781] dark:text-gray-500">{sub}</p>}
+          </div>
+          {action && <div>{action}</div>}
+      </div>
+  );
+
+  if (showChatSettings) {
+      return <ChatSettingsScreen onClose={() => setShowChatSettings(false)} />;
+  }
+
+  if (showPasswordSettings) {
+      return <PasswordSettingsScreen onClose={() => setShowPasswordSettings(false)} />;
+  }
+
+  return (
+    <div className="flex flex-col h-full bg-white dark:bg-wa-dark-bg pb-20 overflow-y-auto transition-colors relative">
+        
+        {/* Desktop Header with Back Button - Only visible on md+ screens */}
+        <div className="hidden md:flex h-[60px] bg-wa-grayBg dark:bg-wa-dark-header items-center gap-3 px-4 shrink-0 border-b border-wa-border dark:border-wa-dark-border text-[#111b21] dark:text-gray-100 transition-colors sticky top-0 z-10">
+            <button onClick={() => navigate('/chats')} className="p-2 -ml-2 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
+                <ArrowLeft size={24} />
+            </button>
+            <h2 className="text-xl font-medium md:text-lg">Settings</h2>
+        </div>
+
+        {/* Language Modal */}
+        {showLangModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                <div className="bg-white dark:bg-wa-dark-paper rounded-lg shadow-xl w-full max-w-sm flex flex-col max-h-[80vh]">
+                    <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                        <h3 className="text-lg font-medium text-[#111b21] dark:text-gray-100">App Language</h3>
+                        <button onClick={() => setShowLangModal(false)}>
+                            <X size={24} className="text-gray-500" />
+                        </button>
+                    </div>
+                    <div className="overflow-y-auto p-2">
+                        {LANGUAGES.map(lang => (
+                            <div 
+                                key={lang} 
+                                onClick={() => { setLanguage(lang); setShowLangModal(false); }}
+                                className="flex items-center justify-between p-3 hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover rounded-lg cursor-pointer"
+                            >
+                                <span className="text-[#111b21] dark:text-gray-100">{lang}</span>
+                                {language === lang && <Check size={20} className="text-wa-teal" />}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* Logo Effect Modal */}
+        {showEffectModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                <div className="bg-white dark:bg-wa-dark-paper rounded-lg shadow-xl w-full max-w-sm flex flex-col">
+                    <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                        <h3 className="text-lg font-medium text-[#111b21] dark:text-gray-100">Logo Effects</h3>
+                        <button onClick={() => setShowEffectModal(false)}>
+                            <X size={24} className="text-gray-500" />
+                        </button>
+                    </div>
+                    <div className="p-2">
+                        {LOGO_EFFECTS.map(effect => (
+                            <div 
+                                key={effect.id} 
+                                onClick={() => { setLogoEffect(effect.id as any); setShowEffectModal(false); }}
+                                className="flex items-center justify-between p-3 hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover rounded-lg cursor-pointer"
+                            >
+                                <span className="text-[#111b21] dark:text-gray-100">{effect.label}</span>
+                                {logoEffect === effect.id && <Check size={20} className="text-wa-teal" />}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* Profile Card */}
+        <div className="flex gap-4 px-4 py-6 border-b border-wa-border dark:border-wa-dark-border hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover transition-colors items-start">
+            <div className="relative shrink-0 mt-1">
+                <img 
+                    src={isEditing ? editAvatar : currentUser.avatar} 
+                    alt="Me" 
+                    className="w-16 h-16 rounded-full object-cover transition-all" 
+                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://picsum.photos/200' }}
+                />
+                {isEditing && (
+                     <div className="absolute inset-0 bg-black/30 rounded-full flex items-center justify-center">
+                         <Camera size={20} className="text-white opacity-80" />
+                     </div>
+                )}
+                {!isEditing && (
+                    <button onClick={() => setIsEditing(true)} className="absolute bottom-0 right-0 bg-wa-teal rounded-full p-1 text-white border-2 border-white dark:border-wa-dark-bg shadow-sm">
+                        <Edit2 size={12} />
+                    </button>
+                )}
+            </div>
+            
+            <div className="flex-1 min-w-0">
+                {isEditing ? (
+                    <div className="flex flex-col gap-4 w-full animate-in fade-in duration-200">
+                         {/* Name Field */}
+                         <div className="flex flex-col gap-1">
+                             <label className="text-[11px] font-bold text-wa-teal dark:text-wa-teal uppercase tracking-wider">Name</label>
+                             <input 
+                                type="text" 
+                                value={editName} 
+                                onChange={(e) => setEditName(e.target.value)} 
+                                placeholder="Your Name"
+                                className="bg-transparent border-b-2 border-wa-teal py-1 text-[#111b21] dark:text-gray-100 outline-none w-full text-base"
+                            />
+                         </div>
+
+                         {/* About Field */}
+                         <div className="flex flex-col gap-1">
+                             <label className="text-[11px] font-bold text-wa-teal dark:text-wa-teal uppercase tracking-wider">About</label>
+                             <input 
+                                type="text" 
+                                value={editAbout} 
+                                onChange={(e) => setEditAbout(e.target.value)} 
+                                placeholder="About"
+                                className="bg-transparent border-b border-gray-300 dark:border-gray-600 focus:border-wa-teal py-1 text-sm text-[#111b21] dark:text-gray-100 outline-none w-full transition-colors"
+                            />
+                         </div>
+
+                         {/* Avatar URL Field */}
+                         <div className="flex flex-col gap-1">
+                             <label className="text-[11px] font-bold text-wa-teal dark:text-wa-teal uppercase tracking-wider">Avatar URL</label>
+                             <input 
+                                type="text" 
+                                value={editAvatar} 
+                                onChange={(e) => setEditAvatar(e.target.value)} 
+                                placeholder="https://..."
+                                className="bg-transparent border-b border-gray-300 dark:border-gray-600 focus:border-wa-teal py-1 text-xs text-gray-500 dark:text-gray-400 outline-none w-full font-mono transition-colors"
+                            />
+                         </div>
+                         
+                        <div className="flex gap-3 mt-1 justify-end">
+                            <button onClick={handleCancelEdit} className="text-sm text-wa-teal hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover px-4 py-2 rounded-full transition-colors font-medium">
+                                Cancel
+                            </button>
+                            <button onClick={handleSaveProfile} className="text-sm bg-wa-teal text-white px-5 py-2 rounded-full shadow-sm hover:shadow-md hover:brightness-110 transition-all font-medium">
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex flex-col justify-center h-16">
+                        <h2 className="text-xl text-[#111b21] dark:text-gray-100 font-medium truncate">{currentUser.name}</h2>
+                        <p className="text-[#667781] dark:text-gray-400 truncate text-sm">{currentUser.about}</p>
+                    </div>
+                )}
+            </div>
+        </div>
+
+        <div className="py-2">
+            <SettingItem 
+                onClick={toggleTheme}
+                icon={theme === 'dark' ? <Moon size={24}/> : <Sun size={24}/>} 
+                label="Appearance" 
+                sub={`Theme: ${theme === 'dark' ? 'Dark' : 'Light'}`} 
+            />
+            
+            <SettingItem 
+                onClick={() => setShowLangModal(true)}
+                icon={<Globe size={24}/>} 
+                label="App Language" 
+                sub={language} 
+            />
+
+            <SettingItem 
+                onClick={() => setShowEffectModal(true)}
+                icon={<Sparkles size={24}/>} 
+                label="Logo Effects" 
+                sub={logoEffect === 'none' ? 'None' : logoEffect === 'shine' ? 'Shine Effect' : 'Wave Effect'} 
+            />
+
+            <SettingItem 
+                onClick={() => setShowChatSettings(true)}
+                icon={<MessageCircle size={24}/>} 
+                label="Chats" 
+                sub="Theme, wallpapers, colors, font size" 
+            />
+
+             <SettingItem 
+                onClick={() => setShowPasswordSettings(true)}
+                icon={<Key size={24}/>} 
+                label="Security" 
+                sub="Manage Passwords" 
+            />
+            
+            <SettingItem icon={<UserIcon size={24}/>} label="Privacy" sub="Block contacts, disappearing messages" />
+            <SettingItem icon={<Bell size={24}/>} label="Notifications" sub="Message, group & call tones" />
+            <SettingItem icon={<Database size={24}/>} label="Storage and data" sub="Network usage, auto-download" />
+            <SettingItem icon={<HelpCircle size={24}/>} label="Help" sub="Help center, contact us, privacy policy" />
+        </div>
+        
+        <div className="mt-8 flex flex-col items-center text-[#667781] dark:text-gray-500 text-xs gap-1">
+            <span>from</span>
+            <span className="font-bold text-black dark:text-white text-sm">Meta</span>
+        </div>
+    </div>
+  );
+};
+
+export default SettingsTab;
