@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Archive, ArchiveRestore, Users } from 'lucide-react';
@@ -47,7 +48,7 @@ const ArchivedChats = () => {
   return (
     <div className="flex flex-col h-full bg-white dark:bg-wa-dark-bg">
         <div className="h-[60px] bg-wa-teal dark:bg-wa-dark-header flex items-center gap-3 px-4 text-white shrink-0 shadow-sm md:bg-wa-grayBg md:border-b md:border-wa-border md:dark:border-wa-dark-border md:text-black md:dark:text-white transition-colors">
-            <button onClick={() => navigate(-1)} className="p-1 -ml-2 rounded-full active:bg-black/10">
+            <button onClick={() => navigate('/chats')} className="p-1 -ml-2 rounded-full active:bg-black/10">
                 <ArrowLeft size={24} />
             </button>
             <h2 className="text-xl font-medium md:text-lg">Archived</h2>

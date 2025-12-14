@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
-import { MessageCircle, Phone, CircleDashed, Settings, Search, Plus, ArrowLeft, Camera, Edit2, MoreVertical } from 'lucide-react';
+import { MessageCircle, Phone, CircleDashed, Settings, Search, Plus, ArrowLeft, Camera, Edit2, MoreVertical, Lock } from 'lucide-react';
 
 import ChatList from './components/ChatList';
 import ChatWindow from './components/ChatWindow';
@@ -14,13 +15,12 @@ import { AppProvider, useApp } from './context/AppContext';
 import { GameProvider, useGame } from './context/GameContext'; // Import Game Context
 import GameInviteModal from './components/games/GameInviteModal'; // Import Game Components
 import FloatingGameView from './components/games/FloatingGameView';
+import { CallProvider } from './context/CallContext'; // Import Call Context
+import CallOverlay from './components/CallOverlay'; // Import Call Overlay
 
 // --- Global Game Wrapper Component ---
 const GlobalGameUI = () => {
     const { isGameInviteOpen, closeGameInvite, createGame, inviteOptions } = useGame();
-    // In a real app, you'd get the actual chatId from context or URL if the modal is open in a specific chat
-    // For demo, we'll assume a dummy chat ID or fetch from URL params in a smarter way
-    // For this prototype, we'll just use a placeholder
     const handleGameSelect = (type: any) => {
         createGame(type, 'current-chat-id', 'opponent-id');
     };
@@ -42,7 +42,7 @@ const DesktopLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState('chats');
-  const { searchQuery, setSearchQuery, currentUser, logoEffect } = useApp();
+  const { searchQuery, setSearchQuery, currentUser, logoEffect, theme } = useApp();
 
   // Determine active view based on path
   useEffect(() => {
@@ -53,7 +53,6 @@ const DesktopLayout = () => {
   }, [location]);
 
   // Determine if we should show the main sidebar header (Avatar + Nav Icons)
-  // We hide it for sub-pages like Settings, Calls, New Chat, Archived which have their own headers
   const isSubPage = 
     location.pathname.startsWith('/settings') || 
     location.pathname.startsWith('/calls') || 
@@ -61,6 +60,18 @@ const DesktopLayout = () => {
     location.pathname.startsWith('/archived');
   
   const showSidebarHeader = !isSubPage;
+
+  // Determine effect class for desktop header
+  const getDesktopEffectClass = () => {
+      if (logoEffect === 'wave') return 'effect-wave';
+      if (logoEffect === 'shine') {
+          return theme === 'dark' ? 'effect-shine' : 'effect-shine-dark';
+      }
+      return '';
+  };
+
+  const desktopEffectClass = getDesktopEffectClass();
+  const desktopTextColors = logoEffect === 'shine' ? '' : 'text-[#111b21] dark:text-gray-100';
 
   return (
     <div className="flex h-screen w-full bg-[#EFEAE2] dark:bg-[#0b141a] relative overflow-hidden xl:px-10 xl:py-5">
@@ -74,7 +85,12 @@ const DesktopLayout = () => {
           {/* Header - Only shown for main chat list and status */}
           {showSidebarHeader && (
             <div className="h-[60px] bg-wa-grayBg dark:bg-wa-dark-header flex items-center justify-between px-4 shrink-0 border-b border-wa-border dark:border-wa-dark-border">
-                <img src={currentUser.avatar} alt="Me" className="w-10 h-10 rounded-full cursor-pointer" onClick={() => navigate('/settings')} />
+                <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/settings')}>
+                    <img src={currentUser.avatar} alt="Me" className="w-10 h-10 rounded-full object-cover" />
+                    <span className={`font-medium ${desktopTextColors} ${desktopEffectClass}`}>
+                        {currentUser.name}
+                    </span>
+                </div>
                 <div className="flex gap-6 text-wa-gray dark:text-gray-400">
                 <div className="cursor-pointer" onClick={() => navigate('/status')}><CircleDashed size={24} strokeWidth={activeTab === 'status' ? 2.5 : 2} className={activeTab === 'status' ? 'text-wa-teal dark:text-wa-teal' : ''} /></div>
                 <div className="cursor-pointer" onClick={() => navigate('/new-chat')}><MessageCircle size={24} strokeWidth={activeTab === 'chats' ? 2.5 : 2} className={location.pathname === '/new-chat' ? 'text-wa-teal dark:text-wa-teal' : ''} /></div>
@@ -146,8 +162,10 @@ const DesktopLayout = () => {
         </div>
       </div>
       
-      {/* Game System UI Overlay */}
+      {/* Global Game System UI Overlay */}
       <GlobalGameUI />
+      {/* Global Call Overlay */}
+      <CallOverlay />
     </div>
   );
 };
@@ -171,6 +189,7 @@ const MobileLayout = () => {
         }
     }, [location.pathname]);
 
+    // Wrap Mobile Chat View
     if (isChatOpen) {
         return (
              <div className="h-screen w-full bg-wa-bg">
@@ -178,8 +197,8 @@ const MobileLayout = () => {
                     <Route path="/chat/:chatId" element={<ChatWindow />} />
                     <Route path="/chat/:chatId/info" element={<GroupInfo />} />
                 </Routes>
-                {/* Game System UI Overlay for Mobile Chat */}
                 <GlobalGameUI />
+                <CallOverlay />
              </div>
         );
     }
@@ -191,6 +210,7 @@ const MobileLayout = () => {
                     <Route path="/new-chat" element={<NewChat />} />
                     <Route path="/archived" element={<ArchivedChats />} />
                  </Routes>
+                 <CallOverlay />
             </div>
         )
     }
@@ -213,8 +233,8 @@ const MobileLayout = () => {
                     </div>
                 ) : (
                     <>
-                        <span className={`text-xl font-medium ${logoEffect === 'shine' ? 'effect-shine' : logoEffect === 'wave' ? 'effect-wave' : ''}`}>
-                            WhatsApp
+                        <span className={`text-xl font-medium truncate max-w-[70%] ${logoEffect === 'shine' ? 'effect-shine' : logoEffect === 'wave' ? 'effect-wave' : ''}`}>
+                            {currentUser.name}
                         </span>
                         <div className="flex gap-5">
                             <Search size={22} onClick={() => setShowSearch(true)} className="cursor-pointer" />
@@ -242,7 +262,7 @@ const MobileLayout = () => {
                  {(location.pathname === '/' || location.pathname === '/chats') && (
                      <div 
                         onClick={() => navigate('/new-chat')}
-                        className="absolute bottom-4 right-4 w-14 h-14 bg-wa-teal dark:bg-wa-tealDark rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.3)] flex items-center justify-center text-white cursor-pointer active:brightness-90 transition-all z-20 hover:scale-105"
+                        className="absolute bottom-6 right-5 w-14 h-14 bg-wa-teal dark:bg-wa-tealDark rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.3)] flex items-center justify-center text-white cursor-pointer active:brightness-90 transition-all z-20 hover:scale-105"
                      >
                          <MessageCircle className="fill-white" size={24} />
                          <div className="absolute -top-1 -right-1 bg-wa-teal dark:bg-wa-tealDark rounded-full border-2 border-white dark:border-wa-dark-bg w-5 h-5 flex items-center justify-center">
@@ -253,7 +273,8 @@ const MobileLayout = () => {
 
                  {/* Calls FAB */}
                  {location.pathname === '/calls' && (
-                     <div className="absolute bottom-4 right-4 w-14 h-14 bg-wa-teal dark:bg-wa-tealDark rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.3)] flex items-center justify-center text-white cursor-pointer active:brightness-90 transition-all z-20 hover:scale-105">
+                     <div className="absolute bottom-6 right-5 w-14 h-14 bg-wa-teal dark:bg-wa-tealDark rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.3)] flex items-center justify-center text-white cursor-pointer active:brightness-90 transition-all z-20 hover:scale-105"
+                     >
                          <Phone className="fill-white" size={24} />
                          <Plus size={14} strokeWidth={3} className="absolute top-2 right-2 text-white" />
                      </div>
@@ -262,10 +283,10 @@ const MobileLayout = () => {
                  {/* Status FABs */}
                  {location.pathname === '/status' && (
                     <>
-                      <div className="absolute bottom-20 right-5 w-10 h-10 bg-wa-grayBg dark:bg-wa-dark-paper shadow-md rounded-full flex items-center justify-center text-[#54656f] dark:text-white transition-colors cursor-pointer z-20 hover:scale-105">
+                      <div className="absolute bottom-24 right-6 w-10 h-10 bg-wa-grayBg dark:bg-wa-dark-paper shadow-md rounded-full flex items-center justify-center text-[#54656f] dark:text-white transition-colors cursor-pointer z-20 hover:scale-105">
                            <Edit2 size={18} />
                       </div>
-                      <div className="absolute bottom-4 right-4 w-14 h-14 bg-wa-teal dark:bg-wa-tealDark shadow-[0_4px_10px_rgba(0,0,0,0.3)] rounded-full flex items-center justify-center text-white transition-colors cursor-pointer z-20 hover:scale-105">
+                      <div className="absolute bottom-6 right-5 w-14 h-14 bg-wa-teal dark:bg-wa-tealDark shadow-[0_4px_10px_rgba(0,0,0,0.3)] rounded-full flex items-center justify-center text-white transition-colors cursor-pointer z-20 hover:scale-105">
                            <Camera size={24} />
                       </div>
                     </>
@@ -294,6 +315,8 @@ const MobileLayout = () => {
             
             {/* Global Game Overlay for non-chat screens (minimized view) */}
             <GlobalGameUI />
+            {/* Global Call Overlay */}
+            <CallOverlay />
         </div>
     );
 };
@@ -310,9 +333,11 @@ const App = () => {
   return (
     <AppProvider>
       <GameProvider>
-        <HashRouter>
-            {isMobile ? <MobileLayout /> : <DesktopLayout />}
-        </HashRouter>
+        <CallProvider>
+            <HashRouter>
+                {isMobile ? <MobileLayout /> : <DesktopLayout />}
+            </HashRouter>
+        </CallProvider>
       </GameProvider>
     </AppProvider>
   );

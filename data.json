@@ -1,6 +1,12 @@
 
 {
   "currentUserId": "me",
+  "appConfig": {
+      "languages": ["English", "Spanish", "French", "German", "Hindi", "Portuguese", "Russian", "Chinese", "Japanese", "Arabic"],
+      "appColors": ["#008069", "#075E54", "#3b82f6", "#8b5cf6", "#ef4444", "#f97316", "#14b8a6", "#e11d48"],
+      "bubbleColors": ["#D9FDD3", "#FFFFFF", "#d1e4f9", "#fec5c5", "#e2d5f7", "#ffe4c4", "#ccf2f4", "#202c33", "#005c4b", "#ffffcc"],
+      "reactions": ["👍", "❤️", "😂", "😮", "😢", "🙏", "🔥", "🎉"]
+  },
   "users": {
     "me": { "id": "me", "name": "You", "avatar": "https://picsum.photos/seed/me/200", "about": "Available", "phone": "+1 234 567 8900", "connectionType": "me" },
     "u1": { "id": "u1", "name": "Alice Johnson", "avatar": "https://picsum.photos/seed/alice/201", "about": "Busy at work", "phone": "+1 555 0101", "connectionType": "following" },

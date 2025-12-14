@@ -1,17 +1,14 @@
-import React, { useState } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Key, User as UserIcon, Bell, Database, HelpCircle, Heart, Moon, Sun, Edit2, Check, X, Camera, Globe, Sparkles, MessageCircle, ArrowLeft, Palette, Type, Lock, Shield } from 'lucide-react';
+import { Key, User as UserIcon, Bell, Database, HelpCircle, Heart, Moon, Sun, Edit2, Check, X, Camera, Globe, Sparkles, MessageCircle, ArrowLeft, Palette, Type, Lock, Shield, FileText, Image as ImageIcon, Video, Mic, BarChart2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
-const LANGUAGES = ['English', 'Spanish', 'French', 'German', 'Hindi', 'Portuguese', 'Russian', 'Chinese'];
 const LOGO_EFFECTS = [
     { id: 'none', label: 'None' },
     { id: 'shine', label: 'Shine' },
     { id: 'wave', label: 'Wave' }
 ];
-
-const APP_COLORS = ['#008069', '#075E54', '#3b82f6', '#8b5cf6', '#ef4444', '#f97316', '#14b8a6'];
-const BUBBLE_COLORS = ['#D9FDD3', '#FFFFFF', '#d1e4f9', '#fec5c5', '#e2d5f7', '#ffe4c4', '#ccf2f4', '#202c33', '#005c4b'];
 
 const PasswordSettingsScreen = ({ onClose }: { onClose: () => void }) => {
     const { securitySettings, updateSecuritySettings } = useApp();
@@ -167,7 +164,7 @@ const PasswordSettingsScreen = ({ onClose }: { onClose: () => void }) => {
 };
 
 const ChatSettingsScreen = ({ onClose }: { onClose: () => void }) => {
-    const { chatSettings, updateChatSettings } = useApp();
+    const { chatSettings, updateChatSettings, appConfig } = useApp();
 
     const getFontSizeClass = () => {
         switch(chatSettings.fontSize) {
@@ -176,6 +173,9 @@ const ChatSettingsScreen = ({ onClose }: { onClose: () => void }) => {
             default: return 'text-[15px]';
         }
     };
+
+    const APP_COLORS = appConfig?.appColors || ['#008069'];
+    const BUBBLE_COLORS = appConfig?.bubbleColors || ['#D9FDD3', '#FFFFFF'];
 
     return (
         <div className="absolute inset-0 z-20 bg-white dark:bg-wa-dark-bg flex flex-col animate-in slide-in-from-right duration-200">
@@ -281,9 +281,222 @@ const ChatSettingsScreen = ({ onClose }: { onClose: () => void }) => {
     );
 };
 
+const StorageSettingsScreen = ({ onClose }: { onClose: () => void }) => {
+    const { chats, messages, users, chatDocuments } = useApp();
+    const [filter, setFilter] = useState<'all' | 'media' | 'files'>('all');
+
+    // Helper to calculate size
+    const calculateSize = (type: string, count: number) => {
+        switch(type) {
+            case 'image': return count * 1.2; // 1.2 MB avg
+            case 'video': return count * 12;  // 12 MB avg
+            case 'voice': return count * 0.5; // 0.5 MB avg
+            case 'text': return count * 0.001; // 1 KB avg
+            case 'doc': return count * 2.5;   // 2.5 MB avg
+            default: return 0;
+        }
+    };
+
+    const stats = useMemo(() => {
+        let mediaSize = 0;
+        let fileSize = 0;
+        let audioSize = 0;
+        let otherSize = 0;
+
+        const chatSizes: Record<string, number> = {};
+
+        Object.keys(messages).forEach(chatId => {
+            let currentChatSize = 0;
+            messages[chatId].forEach(msg => {
+                if (msg.isDeleted) return;
+                
+                let size = 0;
+                if (msg.type === 'image') size = calculateSize('image', 1);
+                else if (msg.type === 'video') size = calculateSize('video', 1);
+                else if (msg.type === 'voice') size = calculateSize('voice', 1);
+                else if (msg.type === 'text') size = calculateSize('text', 1);
+
+                if (msg.type === 'image' || msg.type === 'video') mediaSize += size;
+                else if (msg.type === 'voice') audioSize += size;
+                else otherSize += size;
+
+                currentChatSize += size;
+            });
+
+            // Add documents if any
+            if (chatDocuments[chatId]) {
+                const docTotal = calculateSize('doc', chatDocuments[chatId].length);
+                fileSize += docTotal;
+                currentChatSize += docTotal;
+            }
+
+            chatSizes[chatId] = currentChatSize;
+        });
+
+        const total = mediaSize + fileSize + audioSize + otherSize;
+
+        // Prepare sorted chat list based on filter
+        const sortedChats = chats
+            .map(chat => {
+                let size = chatSizes[chat.id] || 0;
+                // Adjust size based on filter for the list view
+                if (filter === 'media') {
+                    // Recalculate just media for this chat
+                    const msgs = messages[chat.id] || [];
+                    const imgs = msgs.filter(m => m.type === 'image').length;
+                    const vids = msgs.filter(m => m.type === 'video').length;
+                    size = calculateSize('image', imgs) + calculateSize('video', vids);
+                } else if (filter === 'files') {
+                    // Recalculate just files
+                    const docs = chatDocuments[chat.id] || [];
+                    size = calculateSize('doc', docs.length);
+                }
+                return { ...chat, size };
+            })
+            .sort((a, b) => b.size - a.size);
+
+        return {
+            media: mediaSize,
+            files: fileSize,
+            audio: audioSize,
+            other: otherSize,
+            total,
+            sortedChats
+        };
+    }, [messages, chats, chatDocuments, filter]);
+
+    const chartData = [
+        { label: 'Media', value: stats.media, color: '#008069' },
+        { label: 'Files', value: stats.files, color: '#34B7F1' },
+        { label: 'Audio', value: stats.audio, color: '#FFB347' },
+        { label: 'Other', value: stats.other, color: '#8696a0' }
+    ];
+
+    const R = 36;
+    const C = 2 * Math.PI * R;
+    let currentOffset = 0;
+
+    return (
+        <div className="absolute inset-0 z-20 bg-white dark:bg-wa-dark-bg flex flex-col animate-in slide-in-from-right duration-200">
+            {/* Header */}
+            <div className="h-[60px] bg-wa-teal dark:bg-wa-dark-header flex items-center px-4 shrink-0 shadow-sm text-white">
+                <button onClick={onClose} className="mr-3 p-1 rounded-full active:bg-white/10">
+                    <ArrowLeft size={24} />
+                </button>
+                <h2 className="text-xl font-medium">Storage and Data</h2>
+            </div>
+
+            <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-wa-dark-bg">
+                {/* Visual Chart Section */}
+                <div className="bg-white dark:bg-wa-dark-paper p-6 mb-2 shadow-sm flex flex-col items-center">
+                    <div className="relative w-48 h-48 mb-6">
+                        <svg viewBox="0 0 100 100" className="transform -rotate-90 w-full h-full">
+                            <circle cx="50" cy="50" r={R} stroke="#e9edef" strokeWidth="12" fill="none" className="dark:stroke-gray-700" />
+                            {stats.total > 0 && chartData.map((item) => {
+                                const percent = item.value / stats.total;
+                                const dashArray = `${percent * C} ${C}`;
+                                const dashOffset = -currentOffset;
+                                currentOffset += percent * C;
+                                return (
+                                    <circle 
+                                        key={item.label}
+                                        cx="50" cy="50" r={R}
+                                        fill="none"
+                                        stroke={item.color}
+                                        strokeWidth="12"
+                                        strokeDasharray={dashArray}
+                                        strokeDashoffset={dashOffset}
+                                        className="transition-all duration-500 ease-out"
+                                    />
+                                );
+                            })}
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <span className="text-3xl font-light text-[#111b21] dark:text-gray-100">
+                                {stats.total.toFixed(1)} <span className="text-sm font-medium">MB</span>
+                            </span>
+                            <span className="text-xs text-[#667781] dark:text-gray-500 uppercase font-medium">Used</span>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-3 w-full max-w-xs">
+                        {chartData.map(item => (
+                            <div key={item.label} className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                                <div className="flex flex-col">
+                                    <span className="text-sm text-[#111b21] dark:text-gray-200">{item.label}</span>
+                                    <span className="text-xs text-[#667781] dark:text-gray-500">{item.value.toFixed(1)} MB</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Filter Tabs */}
+                <div className="bg-white dark:bg-wa-dark-paper mb-2 shadow-sm p-2 sticky top-0 z-10 border-b border-wa-border dark:border-gray-700">
+                    <div className="flex gap-2">
+                        {(['all', 'media', 'files'] as const).map(f => (
+                            <button
+                                key={f}
+                                onClick={() => setFilter(f)}
+                                className={`flex-1 py-2 rounded-full text-sm font-medium transition-colors capitalize
+                                    ${filter === f 
+                                        ? 'bg-wa-teal text-white shadow-sm' 
+                                        : 'bg-gray-100 dark:bg-wa-dark-hover text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10'
+                                    }
+                                `}
+                            >
+                                {f}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Chats List */}
+                <div className="bg-white dark:bg-wa-dark-paper shadow-sm">
+                    <h3 className="px-4 py-3 text-sm font-bold text-[#54656f] dark:text-gray-400 uppercase tracking-wide">
+                        {filter === 'all' ? 'Manage Storage' : `Largest ${filter}`}
+                    </h3>
+                    
+                    {stats.sortedChats.map(chat => {
+                        const user = users[chat.contactId];
+                        const name = chat.isGroup ? chat.groupName : user?.name;
+                        const avatar = chat.isGroup ? 'https://picsum.photos/300' : user?.avatar;
+                        
+                        if (chat.size < 0.1) return null; // Hide empty chats
+
+                        return (
+                            <div key={chat.id} className="flex items-center gap-4 px-4 py-3 hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover cursor-pointer transition-colors border-b border-gray-100 dark:border-gray-800 last:border-0">
+                                <img src={avatar} alt="" className="w-10 h-10 rounded-full object-cover" />
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="text-[#111b21] dark:text-gray-100 font-medium truncate">{name}</h4>
+                                    <p className="text-xs text-[#667781] dark:text-gray-500">
+                                        {chat.isGroup ? `${chat.groupParticipants?.length} participants` : 'Contact'}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <span className="text-wa-teal dark:text-wa-teal font-bold text-sm block">
+                                        {chat.size.toFixed(1)} MB
+                                    </span>
+                                </div>
+                            </div>
+                        )
+                    })}
+                    
+                    {stats.sortedChats.every(c => c.size < 0.1) && (
+                        <div className="py-8 text-center text-gray-500 text-sm">
+                            No significant data found for this filter.
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const SettingsTab = () => {
   const navigate = useNavigate();
-  const { theme, toggleTheme, currentUser, updateUserProfile, language, setLanguage, logoEffect, setLogoEffect } = useApp();
+  const { theme, toggleTheme, currentUser, updateUserProfile, language, setLanguage, logoEffect, setLogoEffect, appConfig } = useApp();
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(currentUser.name);
   const [editAbout, setEditAbout] = useState(currentUser.about);
@@ -292,6 +505,9 @@ const SettingsTab = () => {
   const [showEffectModal, setShowEffectModal] = useState(false);
   const [showChatSettings, setShowChatSettings] = useState(false);
   const [showPasswordSettings, setShowPasswordSettings] = useState(false);
+  const [showStorageSettings, setShowStorageSettings] = useState(false);
+
+  const LANGUAGES = appConfig?.languages || ['English'];
 
   const handleSaveProfile = () => {
     if (editName.trim()) {
@@ -324,6 +540,10 @@ const SettingsTab = () => {
 
   if (showPasswordSettings) {
       return <PasswordSettingsScreen onClose={() => setShowPasswordSettings(false)} />;
+  }
+
+  if (showStorageSettings) {
+      return <StorageSettingsScreen onClose={() => setShowStorageSettings(false)} />;
   }
 
   return (
@@ -505,7 +725,12 @@ const SettingsTab = () => {
             
             <SettingItem icon={<UserIcon size={24}/>} label="Privacy" sub="Block contacts, disappearing messages" />
             <SettingItem icon={<Bell size={24}/>} label="Notifications" sub="Message, group & call tones" />
-            <SettingItem icon={<Database size={24}/>} label="Storage and data" sub="Network usage, auto-download" />
+            <SettingItem 
+                onClick={() => setShowStorageSettings(true)}
+                icon={<Database size={24}/>} 
+                label="Storage and data" 
+                sub="Network usage, auto-download" 
+            />
             <SettingItem icon={<HelpCircle size={24}/>} label="Help" sub="Help center, contact us, privacy policy" />
         </div>
         

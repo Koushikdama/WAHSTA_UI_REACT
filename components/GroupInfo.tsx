@@ -124,7 +124,22 @@ const GroupInfo = () => {
 
   // --- Render Helpers ---
 
-  const renderMediaContent = () => {
+  const renderMediaContent = (isPrivateContext: boolean) => {
+      // CRITICAL: If in Public Tab and Chat is Locked, Hide Media
+      if (!isPrivateContext && chat.isLocked) {
+          return (
+              <div className="flex flex-col items-center justify-center py-10 px-4 text-center bg-gray-50 dark:bg-white/5 mx-4 mb-4 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
+                  <div className="w-12 h-12 bg-wa-grayBg dark:bg-gray-700 rounded-full flex items-center justify-center mb-3 text-gray-500">
+                      <Lock size={20} />
+                  </div>
+                  <h4 className="text-sm font-medium text-[#111b21] dark:text-gray-100">Media Locked</h4>
+                  <p className="text-xs text-[#667781] dark:text-gray-500 mt-1 max-w-[220px]">
+                      Media and documents are hidden because this chat is locked. Switch to the <strong>Private</strong> tab to view.
+                  </p>
+              </div>
+          );
+      }
+
       switch (mediaFilter) {
           case 'all':
               return (
@@ -297,30 +312,30 @@ const GroupInfo = () => {
 
   const renderMediaSection = (isPrivateContext: boolean) => (
       <div className="bg-white dark:bg-wa-dark-header mb-3 shadow-sm transition-colors overflow-hidden">
-           <div className="px-4 py-3 flex items-center justify-between border-b border-gray-100 dark:border-gray-800">
+           <div 
+                className="px-4 py-3 flex items-center justify-between border-b border-gray-100 dark:border-gray-800 cursor-pointer hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover"
+                onClick={() => setIsMediaDropdownOpen(!isMediaDropdownOpen)}
+           >
                 <div className="flex flex-col">
-                    <h3 className="text-sm text-[#667781] dark:text-gray-400 font-medium">
+                    <h3 className="text-sm text-[#667781] dark:text-gray-400 font-medium flex items-center gap-2">
                         {isPrivateContext ? 'Private Media & Docs' : 'Media, Docs & Analysis'}
+                        <ChevronDown size={14} className={`transition-transform duration-200 ${isMediaDropdownOpen ? 'rotate-180' : ''}`} />
                     </h3>
                     <p className="text-[10px] text-gray-400">
-                        {isPrivateContext ? 'Secured content only' : 'Shared in this chat'}
+                        {isPrivateContext ? 'Secured content only' : `${allMedia.length} files • ${documents.length} docs`}
                     </p>
                 </div>
 
-                {/* Dropdown Trigger */}
+                {/* Filter Label */}
                 <div className="relative">
-                    <button 
-                        onClick={() => setIsMediaDropdownOpen(!isMediaDropdownOpen)}
-                        className="flex items-center gap-2 bg-gray-100 dark:bg-wa-dark-paper px-3 py-1.5 rounded-lg text-sm font-medium text-[#111b21] dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-wa-dark-hover transition-colors"
-                    >
+                    <div className="flex items-center gap-1 bg-gray-100 dark:bg-wa-dark-paper px-2 py-1 rounded text-xs font-medium text-[#111b21] dark:text-gray-100 uppercase tracking-wide">
                         <span className="capitalize">{mediaFilter}</span>
-                        <ChevronDown size={14} className={`transition-transform duration-200 ${isMediaDropdownOpen ? 'rotate-180' : ''}`} />
-                    </button>
+                    </div>
 
                     {/* Dropdown Menu */}
                     {isMediaDropdownOpen && (
                         <>
-                            <div className="fixed inset-0 z-30" onClick={() => setIsMediaDropdownOpen(false)}></div>
+                            <div className="fixed inset-0 z-30 cursor-default" onClick={(e) => { e.stopPropagation(); setIsMediaDropdownOpen(false); }}></div>
                             <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-wa-dark-paper rounded-lg shadow-xl border border-wa-border dark:border-gray-700 z-40 overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
                                 <MediaDropdownOption type="all" label="All Media" icon={Grid} />
                                 <MediaDropdownOption type="images" label="Images" icon={ImageIcon} />
@@ -335,16 +350,16 @@ const GroupInfo = () => {
            
            {/* Content */}
            <div className="min-h-[150px]">
-               {renderMediaContent()}
+               {renderMediaContent(isPrivateContext)}
            </div>
            
-           {mediaFilter !== 'analysis' && !isPrivateContext && (
+           {mediaFilter !== 'analysis' && !isPrivateContext && !chat.isLocked && (
                 <div className="border-t border-gray-100 dark:border-gray-800">
                     <div 
                         className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover"
                         onClick={() => setIsMediaPrivacyOpen(!isMediaPrivacyOpen)}
                     >
-                        <span className="text-sm text-[#111b21] dark:text-gray-100">Media privacy</span>
+                        <span className="text-sm text-[#111b21] dark:text-gray-100">Media visibility</span>
                         <div className="flex items-center gap-2">
                             <span className="text-xs text-[#667781] dark:text-gray-500">{mediaVisibility}</span>
                             <ChevronRight size={16} className={`text-[#667781] dark:text-gray-400 transition-transform duration-200 ${isMediaPrivacyOpen ? 'rotate-90' : ''}`} />
@@ -356,14 +371,21 @@ const GroupInfo = () => {
                              <p className="text-xs text-[#667781] dark:text-gray-500 mb-3 leading-relaxed">
                                  Show newly downloaded media from this chat in your device's gallery?
                              </p>
-                             <div className="space-y-3 bg-gray-50 dark:bg-white/5 p-3 rounded-lg">
+                             <div className="flex flex-col gap-3">
                                  {['Default (Yes)', 'Yes', 'No'].map(opt => (
-                                     <div key={opt} className="flex items-center gap-3 cursor-pointer" onClick={() => setMediaVisibility(opt)}>
-                                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${mediaVisibility === opt ? 'border-wa-teal' : 'border-gray-400 dark:border-gray-500'}`}>
+                                     <label key={opt} className="flex items-center gap-3 cursor-pointer group">
+                                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${mediaVisibility === opt ? 'border-wa-teal' : 'border-gray-400 dark:border-gray-500 group-hover:border-gray-600'}`}>
                                              {mediaVisibility === opt && <div className="w-2.5 h-2.5 rounded-full bg-wa-teal"></div>}
                                          </div>
                                          <span className="text-sm text-[#111b21] dark:text-gray-100">{opt}</span>
-                                     </div>
+                                         <input 
+                                            type="radio" 
+                                            name="mediaVisibility" 
+                                            className="hidden" 
+                                            checked={mediaVisibility === opt} 
+                                            onChange={() => setMediaVisibility(opt)}
+                                         />
+                                     </label>
                                  ))}
                              </div>
                         </div>

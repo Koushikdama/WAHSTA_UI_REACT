@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, Chat, Message, MessageType, ChatSettings, SecuritySettings, Call, StatusUpdate, GameConfig, Channel, ChatDocument } from '../types';
+import { User, Chat, Message, MessageType, ChatSettings, SecuritySettings, Call, StatusUpdate, GameConfig, Channel, ChatDocument, AppConfig } from '../types';
 import { useChatData } from '../hooks/useChatData';
 
 interface AppContextType {
@@ -27,11 +27,13 @@ interface AppContextType {
   channels: Channel[];
   chatDocuments: Record<string, ChatDocument[]>;
   gameConfig?: GameConfig;
+  appConfig?: AppConfig;
   startChat: (contactId: string) => string;
   createGroup: (groupName: string, participantIds: string[]) => string;
   addMessage: (chatId: string, text: string, type: MessageType, replyToId?: string, mediaUrl?: string, duration?: string) => void;
   deleteMessages: (chatId: string, messageIds: string[], deleteForEveryone: boolean) => void;
   toggleArchiveChat: (chatId: string) => void;
+  togglePinChat: (chatId: string) => void;
   togglePinMessage: (chatId: string, messageId: string) => void;
   addReaction: (chatId: string, messageId: string, emoji: string) => void;
   updateChatTheme: (chatId: string, color: string, type: 'outgoing' | 'incoming') => void;
@@ -291,6 +293,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ));
   };
 
+  const togglePinChat = (chatId: string) => {
+    setChats(prev => prev.map(chat => 
+      chat.id === chatId ? { ...chat, isPinned: !chat.isPinned } : chat
+    ));
+  };
+
   const togglePinMessage = (chatId: string, messageId: string) => {
     setMessages(prev => {
       const chatMessages = prev[chatId] || [];
@@ -397,11 +405,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         channels,
         chatDocuments,
         gameConfig: data?.gameConfig,
+        appConfig: data?.appConfig,
         startChat,
         createGroup,
         addMessage,
         deleteMessages,
         toggleArchiveChat,
+        togglePinChat,
         togglePinMessage,
         addReaction,
         updateChatTheme,

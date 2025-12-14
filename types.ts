@@ -1,4 +1,5 @@
 
+
 export interface User {
   id: string;
   name: string;
@@ -56,6 +57,17 @@ export interface Call {
   duration?: string;
 }
 
+export interface ActiveCall {
+    id: string;
+    contactId: string;
+    type: 'voice' | 'video';
+    status: 'ringing' | 'connected' | 'reconnecting' | 'ended';
+    startTime?: number; // timestamp when connected
+    isMinimized: boolean;
+    isMuted: boolean;
+    isVideoEnabled: boolean;
+}
+
 export interface StatusUpdate {
   id: string;
   userId: string;
@@ -92,6 +104,13 @@ export interface SecuritySettings {
   dailyLockPassword?: string;
   chatLockPassword?: string;
   isAppLockEnabled: boolean;
+}
+
+export interface AppConfig {
+    languages: string[];
+    appColors: string[];
+    bubbleColors: string[];
+    reactions: string[];
 }
 
 // --- GAME SYSTEM TYPES ---

@@ -1,12 +1,19 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Phone, Video, ArrowUpRight, ArrowDownLeft, Link, ArrowLeft } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useCall } from '../context/CallContext';
 import { formatTimestamp } from '../utils/formatTime';
 
 const CallsTab = () => {
   const navigate = useNavigate();
   const { calls, users } = useApp();
+  const { startCall } = useCall();
+
+  const handleCallClick = (contactId: string, type: 'voice' | 'video') => {
+      startCall(contactId, type);
+  };
 
   return (
     <div className="flex flex-col pb-20 bg-white dark:bg-wa-dark-bg min-h-full">
@@ -37,7 +44,11 @@ const CallsTab = () => {
           const isMissed = call.direction === 'missed';
           
           return (
-            <div key={call.id} className="flex items-center gap-4 px-4 py-3 cursor-pointer active:bg-wa-grayBg dark:active:bg-wa-dark-paper hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover transition-colors">
+            <div 
+                key={call.id} 
+                className="flex items-center gap-4 px-4 py-3 cursor-pointer active:bg-wa-grayBg dark:active:bg-wa-dark-paper hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover transition-colors"
+                onClick={() => handleCallClick(call.contactId, call.type)}
+            >
                 <img src={user.avatar} alt={user.name} className="w-12 h-12 rounded-full object-cover" />
                 <div className="flex-1 border-b border-wa-border dark:border-wa-dark-border pb-3 -mb-3 flex justify-between items-center">
                     <div>
@@ -51,7 +62,7 @@ const CallsTab = () => {
                             <span className="text-[13px] text-[#667781] dark:text-gray-500">{formatTimestamp(call.timestamp)}</span>
                         </div>
                     </div>
-                    <div className="text-wa-teal dark:text-wa-teal">
+                    <div className="text-wa-teal dark:text-wa-teal p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                         {call.type === 'voice' ? <Phone size={22} /> : <Video size={24} />}
                     </div>
                 </div>

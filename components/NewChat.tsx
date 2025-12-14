@@ -16,7 +16,7 @@ const NewChat = () => {
   // Group Creation State
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [creationStep, setCreationStep] = useState<1 | 2>(1);
-  const [selectedParticipants, setSelectedParticipants] = useState<Set<string>>(new Set());
+  const [selectedParticipants, setSelectedParticipants] = useState<Set<string>>(new Set<string>());
   const [groupName, setGroupName] = useState('');
   const [groupCreationFilter, setGroupCreationFilter] = useState<'all' | 'following'>('all');
 
@@ -24,7 +24,7 @@ const NewChat = () => {
     chats.filter(c => c.isLocked).map(c => c.contactId)
   );
 
-  const allContacts = Object.values(users).filter(u => u.id !== currentUserId);
+  const allContacts = (Object.values(users) as User[]).filter(u => u.id !== currentUserId);
 
   const followingContacts = allContacts.filter(u => u.connectionType === 'following');
   const followerContacts = allContacts.filter(u => u.connectionType === 'follower');
@@ -41,7 +41,7 @@ const NewChat = () => {
 
   const startGroupCreation = (filter: 'all' | 'following') => {
       setGroupCreationFilter(filter);
-      setSelectedParticipants(new Set());
+      setSelectedParticipants(new Set<string>());
       setGroupName('');
       setCreationStep(1);
       setIsCreatingGroup(true);
@@ -138,7 +138,7 @@ const NewChat = () => {
                     {/* Selected Chips */}
                     {selectedParticipants.size > 0 && (
                         <div className="flex gap-2 p-2 overflow-x-auto border-b border-wa-border dark:border-wa-dark-border no-scrollbar">
-                            {Array.from(selectedParticipants).map(id => {
+                            {(Array.from(selectedParticipants) as string[]).map((id) => {
                                 const u = users[id];
                                 return (
                                     <div key={id} onClick={() => toggleParticipant(id)} className="flex items-center gap-1 bg-gray-100 dark:bg-wa-dark-paper rounded-full pl-1 pr-2 py-1 cursor-pointer hover:bg-gray-200 dark:hover:bg-white/10">
@@ -228,7 +228,7 @@ const NewChat = () => {
                      <div className="w-full bg-gray-50 dark:bg-wa-dark-header rounded-lg p-4 mb-4">
                          <h3 className="text-sm font-medium text-[#111b21] dark:text-gray-200 mb-2">Participants: {selectedParticipants.size}</h3>
                          <div className="flex flex-wrap gap-2">
-                             {Array.from(selectedParticipants).map(id => (
+                             {(Array.from(selectedParticipants) as string[]).map(id => (
                                  <span key={id} className="text-xs bg-gray-200 dark:bg-white/10 px-2 py-1 rounded-full text-gray-700 dark:text-gray-300">
                                      {users[id]?.name.split(' ')[0]}
                                  </span>

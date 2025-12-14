@@ -1,7 +1,8 @@
+
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Check, CheckCheck, Pin, Mic, Archive, Lock } from 'lucide-react';
+import { Check, CheckCheck, Pin, PinOff, Mic, Archive, Lock } from 'lucide-react';
 import { formatTimestamp } from '../utils/formatTime';
 import { useApp } from '../context/AppContext';
 
@@ -10,7 +11,7 @@ type FilterType = 'all' | 'unread' | 'groups';
 const ChatList = () => {
   const navigate = useNavigate();
   const { chatId: activeChatId } = useParams();
-  const { searchQuery, chats, messages, toggleArchiveChat, securitySettings, users } = useApp();
+  const { searchQuery, chats, messages, toggleArchiveChat, togglePinChat, securitySettings, users } = useApp();
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [isLockModalOpen, setIsLockModalOpen] = useState(false);
   const [pin, setPin] = useState('');
@@ -48,12 +49,19 @@ const ChatList = () => {
                 // Search within group participant names
                 const participantsMatch = (chat.groupParticipants || []).some(pId => {
                     const participant = users[pId];
-                    return participant && participant.name.toLowerCase().includes(query);
+                    return participant && (
+                        participant.name.toLowerCase().includes(query) || 
+                        participant.phone.includes(query)
+                    );
                 });
                 matchesSearch = groupNameMatch || participantsMatch;
             } else {
                 const user = users[chat.contactId];
-                matchesSearch = user && user.name.toLowerCase().includes(query);
+                matchesSearch = user && (
+                    user.name.toLowerCase().includes(query) || 
+                    user.phone.replace(/\s/g, '').includes(query.replace(/\s/g, '')) || // Match phone ignoring spaces
+                    user.phone.includes(query)
+                );
             }
         }
         
@@ -216,11 +224,18 @@ const ChatList = () => {
                    </div>
                 </div>
 
-                <div className="absolute right-2 top-2 hidden group-hover:block md:block opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-1 md:flex opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); togglePinChat(chat.id); }}
+                        className="bg-white dark:bg-wa-dark-paper shadow rounded-full p-1.5 text-wa-gray hover:text-wa-teal transition-colors"
+                        title={chat.isPinned ? "Unpin chat" : "Pin chat"}
+                    >
+                        {chat.isPinned ? <PinOff size={16} /> : <Pin size={16} />}
+                    </button>
                     <button 
                         onClick={(e) => { e.stopPropagation(); toggleArchiveChat(chat.id); }}
-                        className="bg-white dark:bg-wa-dark-paper shadow rounded-full p-1 text-wa-gray hover:text-wa-teal"
-                        title="Archive"
+                        className="bg-white dark:bg-wa-dark-paper shadow rounded-full p-1.5 text-wa-gray hover:text-wa-teal transition-colors"
+                        title="Archive chat"
                     >
                         <Archive size={16} />
                     </button>
