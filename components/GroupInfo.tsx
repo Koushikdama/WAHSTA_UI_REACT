@@ -20,7 +20,7 @@ type MediaFilterType = 'all' | 'images' | 'videos' | 'doc' | 'analysis';
 const GroupInfo = () => {
   const { chatId } = useParams();
   const navigate = useNavigate();
-  const { chats, messages, currentUser, currentUserId, users, updateChatTheme, toggleChatLock, securitySettings, chatDocuments } = useApp();
+  const { chats, messages, currentUser, currentUserId, users, updateChatTheme, toggleChatLock, securitySettings, chatDocuments, chatSettings } = useApp();
   
   // Tab State
   const [topTab, setTopTab] = useState<'public' | 'private'>('public');
@@ -68,8 +68,7 @@ const GroupInfo = () => {
   const privateImages = allImages.filter(m => isDateLocked(m.timestamp));
   const privateVideos = allVideos.filter(m => isDateLocked(m.timestamp));
 
-  // Documents (Note: In this demo data, documents don't have ISO timestamps, so we default them to Public to avoid hiding valid docs)
-  // If real timestamps were available, we would filter them too.
+  // Documents
   const documents = (chatId && chatDocuments[chatId]) ? chatDocuments[chatId] : [];
 
   // Determine active media based on tab
@@ -78,7 +77,6 @@ const GroupInfo = () => {
   const activeAllMedia = [...activeImages, ...activeVideos].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   // Analysis Calculations (Based on current view)
-  // For analysis, we might want to show Total vs Hidden, but here we show stats for the *visible* content in the current tab
   const activeMessages = chatMessages.filter(m => topTab === 'private' ? isDateLocked(m.timestamp) : !isDateLocked(m.timestamp));
   const textCount = activeMessages.filter(m => m.type === 'text').length;
   
@@ -117,8 +115,6 @@ const GroupInfo = () => {
   };
 
   const handleAuthVerify = () => {
-      // Use Daily Lock (1234) for Private Tab access
-      // Use Chat Lock (0000) for locking the chat itself
       const requiredPin = authMode === 'private_tab' 
         ? (securitySettings.dailyLockPassword || '1234') 
         : (securitySettings.chatLockPassword || '0000'); 
@@ -129,7 +125,6 @@ const GroupInfo = () => {
               setTopTab('private');
               setShowAuthModal(false);
           } else {
-              // Chat Lock Toggle
               if (chatId) {
                   toggleChatLock(chatId);
                   setShowAuthModal(false);
@@ -147,10 +142,9 @@ const GroupInfo = () => {
   // --- Render Helpers ---
 
   const renderMediaContent = (isPrivateContext: boolean) => {
-      // If we are in public context but chat is locked, we hide everything (redundant safety)
       if (!isPrivateContext && chat.isLocked) {
           return (
-              <div className="flex flex-col items-center justify-center py-10 px-4 text-center bg-gray-50 dark:bg-white/5 mx-4 mb-4 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
+              <div className="flex flex-col items-center justify-center py-10 px-4 text-center bg-gray-50/80 dark:bg-white/5 mx-4 mb-4 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 backdrop-blur-sm">
                   <div className="w-12 h-12 bg-wa-grayBg dark:bg-gray-700 rounded-full flex items-center justify-center mb-3 text-gray-500">
                       <Lock size={20} />
                   </div>
@@ -180,7 +174,7 @@ const GroupInfo = () => {
                             ))}
                         </div>
                       ) : (
-                          <div className="py-8 text-center text-[#667781] dark:text-gray-500 text-sm">
+                          <div className="py-8 text-center text-[#667781] dark:text-gray-500 text-sm bg-white/50 dark:bg-black/20 rounded-lg">
                               {isPrivateContext ? 'No private media found' : 'No public media found'}
                           </div>
                       )}
@@ -203,7 +197,7 @@ const GroupInfo = () => {
                             ))}
                         </div>
                       ) : (
-                        <div className="py-8 text-center text-[#667781] dark:text-gray-500 text-sm">No images found</div>
+                        <div className="py-8 text-center text-[#667781] dark:text-gray-500 text-sm bg-white/50 dark:bg-black/20 rounded-lg">No images found</div>
                       )}
                   </div>
               );
@@ -220,18 +214,17 @@ const GroupInfo = () => {
                             ))}
                         </div>
                       ) : (
-                        <div className="py-8 text-center text-[#667781] dark:text-gray-500 text-sm">No videos found</div>
+                        <div className="py-8 text-center text-[#667781] dark:text-gray-500 text-sm bg-white/50 dark:bg-black/20 rounded-lg">No videos found</div>
                       )}
                   </div>
               );
           case 'doc':
-               // Documents are currently global in this demo
-               if (isPrivateContext) return <div className="py-8 text-center text-[#667781] dark:text-gray-500 text-sm">No private documents</div>;
+               if (isPrivateContext) return <div className="py-8 text-center text-[#667781] dark:text-gray-500 text-sm bg-white/50 dark:bg-black/20 rounded-lg">No private documents</div>;
                
                return (
                    <div className="flex flex-col">
                        {documents.length > 0 ? documents.map(doc => (
-                           <div key={doc.id} className="flex items-center gap-3 p-3 hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover cursor-pointer border-b border-gray-100 dark:border-gray-800 last:border-0">
+                           <div key={doc.id} className="flex items-center gap-3 p-3 hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 cursor-pointer border-b border-gray-100 dark:border-gray-800 last:border-0 bg-white/60 dark:bg-wa-dark-header/60 backdrop-blur-sm">
                                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/20 rounded-lg flex items-center justify-center text-red-500">
                                    <FileText size={20} />
                                </div>
@@ -242,7 +235,7 @@ const GroupInfo = () => {
                                <Download size={18} className="text-[#667781] dark:text-gray-500" />
                            </div>
                        )) : (
-                            <div className="py-8 text-center text-[#667781] dark:text-gray-500 text-sm">No documents found</div>
+                            <div className="py-8 text-center text-[#667781] dark:text-gray-500 text-sm bg-white/50 dark:bg-black/20 rounded-lg">No documents found</div>
                        )}
                    </div>
                );
@@ -258,7 +251,7 @@ const GroupInfo = () => {
                let currentOffset = 0;
 
                return (
-                   <div className="p-5">
+                   <div className="p-5 bg-white/60 dark:bg-wa-dark-header/60 backdrop-blur-sm">
                        <div className="flex flex-col items-center mb-6">
                            <h4 className="text-sm font-medium text-[#111b21] dark:text-gray-100 mb-4 self-start">{isPrivateContext ? 'Private Storage' : 'Public Storage'}</h4>
                            <div className="relative w-48 h-48">
@@ -329,7 +322,7 @@ const GroupInfo = () => {
   const MediaDropdownOption = ({ type, label, icon: Icon }: { type: MediaFilterType, label: string, icon: any }) => (
       <button 
           onClick={() => { setMediaFilter(type); setIsMediaDropdownOpen(false); }}
-          className={`flex items-center gap-3 w-full px-4 py-3 hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover transition-colors ${mediaFilter === type ? 'text-wa-teal bg-gray-50 dark:bg-white/5' : 'text-[#111b21] dark:text-gray-100'}`}
+          className={`flex items-center gap-3 w-full px-4 py-3 hover:bg-wa-grayBg/80 dark:hover:bg-wa-dark-hover/80 transition-colors ${mediaFilter === type ? 'text-wa-teal bg-gray-50 dark:bg-white/5' : 'text-[#111b21] dark:text-gray-100'}`}
       >
           <Icon size={18} />
           <span className="text-sm font-medium">{label}</span>
@@ -338,9 +331,9 @@ const GroupInfo = () => {
   );
 
   const renderMediaSection = (isPrivateContext: boolean) => (
-      <div className="bg-white dark:bg-wa-dark-header mb-3 shadow-sm transition-colors overflow-hidden">
+      <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm mb-3 shadow-sm transition-colors overflow-hidden rounded-lg">
            <div 
-                className="px-4 py-3 flex items-center justify-between border-b border-gray-100 dark:border-gray-800 cursor-pointer hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover"
+                className="px-4 py-3 flex items-center justify-between border-b border-gray-100 dark:border-gray-800 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50"
                 onClick={() => setIsMediaDropdownOpen(!isMediaDropdownOpen)}
            >
                 <div className="flex flex-col">
@@ -383,7 +376,7 @@ const GroupInfo = () => {
            {mediaFilter !== 'analysis' && !isPrivateContext && !chat.isLocked && (
                 <div className="border-t border-gray-100 dark:border-gray-800">
                     <div 
-                        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover"
+                        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50"
                         onClick={() => setIsMediaPrivacyOpen(!isMediaPrivacyOpen)}
                     >
                         <span className="text-sm text-[#111b21] dark:text-gray-100">Media visibility</span>
@@ -422,8 +415,18 @@ const GroupInfo = () => {
       </div>
   );
 
+  const containerStyle = chatSettings.contactInfoBackgroundImage ? {
+      backgroundImage: `url(${chatSettings.contactInfoBackgroundImage})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundAttachment: 'fixed'
+  } : {};
+
   return (
-    <div className="flex flex-col h-full bg-[#f0f2f5] dark:bg-[#0b141a] overflow-y-auto relative">
+    <div 
+        className={`flex flex-col h-full overflow-y-auto relative ${!chatSettings.contactInfoBackgroundImage ? 'bg-[#f0f2f5] dark:bg-[#0b141a]' : ''}`}
+        style={containerStyle}
+    >
       
       {/* AUTH MODAL */}
       {showAuthModal && createPortal(
@@ -468,8 +471,13 @@ const GroupInfo = () => {
           document.body
       )}
 
+      {/* When bg image is set, add overlay */}
+      {chatSettings.contactInfoBackgroundImage && (
+          <div className="fixed inset-0 bg-white/40 dark:bg-black/40 pointer-events-none z-0 backdrop-blur-[2px]"></div>
+      )}
+
       {/* Header */}
-      <div className="h-[60px] bg-white dark:bg-wa-dark-header flex items-center px-4 shrink-0 shadow-sm sticky top-0 z-10 transition-colors">
+      <div className="h-[60px] bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-md flex items-center px-4 shrink-0 shadow-sm sticky top-0 z-10 transition-colors">
         <button onClick={() => navigate(`/chat/${chatId}`)} className="mr-3 text-wa-gray dark:text-gray-400">
           <ArrowLeft size={24} />
         </button>
@@ -478,9 +486,9 @@ const GroupInfo = () => {
         </h2>
       </div>
 
-      <div className="flex-1 pb-10">
-          <div className="bg-white dark:bg-wa-dark-header flex flex-col items-center py-6 mb-3 shadow-sm transition-colors">
-               <img src={avatar} alt="Avatar" className="w-28 h-28 rounded-full object-cover mb-4 shadow-sm" />
+      <div className="flex-1 pb-10 relative z-10">
+          <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm flex flex-col items-center py-6 mb-3 shadow-sm transition-colors rounded-b-lg">
+               <img src={avatar} alt="Avatar" className="w-28 h-28 rounded-full object-cover mb-4 shadow-sm ring-2 ring-white dark:ring-wa-dark-bg" />
                <h1 className="text-2xl text-[#111b21] dark:text-gray-100 font-normal mb-1">{title}</h1>
                <p className="text-[#667781] dark:text-gray-500 text-base mb-4">{subtitle}</p>
                
@@ -505,14 +513,14 @@ const GroupInfo = () => {
           {/* PUBLIC TAB CONTENT */}
           {topTab === 'public' && (
               <>
-                <div className="bg-white dark:bg-wa-dark-header mb-3 shadow-sm transition-colors">
-                    <div className="flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover">
+                <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm mb-3 shadow-sm transition-colors rounded-lg">
+                    <div className="flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50">
                         <div className="w-6 flex justify-center text-wa-gray dark:text-gray-400"><Bell size={22} /></div>
                         <div className="flex-1">
                             <h3 className="text-base text-[#111b21] dark:text-gray-100">Notifications</h3>
                         </div>
                     </div>
-                    <div className="flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover">
+                    <div className="flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50">
                         <div className="w-6 flex justify-center text-wa-gray dark:text-gray-400"><Search size={22} /></div>
                         <div className="flex-1">
                             <h3 className="text-base text-[#111b21] dark:text-gray-100">Search messages</h3>
@@ -522,7 +530,7 @@ const GroupInfo = () => {
                 
                 {renderMediaSection(false)}
 
-                <div className="bg-white dark:bg-wa-dark-header mb-3 shadow-sm transition-colors px-6 py-6">
+                <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm mb-3 shadow-sm transition-colors px-6 py-6 rounded-lg">
                     {/* Theme Selectors */}
                     <div className="mb-8 mt-2">
                         <div className="flex items-center gap-4 mb-4">
@@ -587,12 +595,12 @@ const GroupInfo = () => {
                 </div>
 
                 {pinnedMessages.length > 0 && (
-                    <div className="bg-white dark:bg-wa-dark-header mb-3 shadow-sm transition-colors">
-                        <div className="px-6 py-3 text-sm text-wa-teal dark:text-wa-teal font-medium uppercase">
+                    <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm mb-3 shadow-sm transition-colors rounded-lg overflow-hidden">
+                        <div className="px-6 py-3 text-sm text-wa-teal dark:text-wa-teal font-medium uppercase bg-white/50 dark:bg-black/10">
                             {pinnedMessages.length} Pinned Messages
                         </div>
                         {pinnedMessages.map(msg => (
-                            <div key={msg.id} className="px-6 py-3 hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover cursor-pointer border-t border-wa-border dark:border-wa-dark-border">
+                            <div key={msg.id} className="px-6 py-3 hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 cursor-pointer border-t border-wa-border dark:border-wa-dark-border">
                                 <div className="flex items-center gap-2 mb-1">
                                     <span className="text-xs font-bold text-wa-gray dark:text-gray-400">
                                         {msg.senderId === currentUserId ? 'You' : users[msg.senderId]?.name}
@@ -608,22 +616,22 @@ const GroupInfo = () => {
                 )}
 
                 {!isGroup && contact?.about && (
-                    <div className="bg-white dark:bg-wa-dark-header mb-3 shadow-sm px-6 py-4 transition-colors">
+                    <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm mb-3 shadow-sm px-6 py-4 transition-colors rounded-lg">
                         <h3 className="text-sm text-wa-teal dark:text-wa-teal font-medium mb-1">About</h3>
                         <p className="text-base text-[#111b21] dark:text-gray-100">{contact.about}</p>
                     </div>
                 )}
 
                 {isGroup && (
-                    <div className="bg-white dark:bg-wa-dark-header mb-3 shadow-sm transition-colors">
-                        <div className="px-6 py-3 text-sm text-[#667781] dark:text-gray-400">
+                    <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm mb-3 shadow-sm transition-colors rounded-lg overflow-hidden">
+                        <div className="px-6 py-3 text-sm text-[#667781] dark:text-gray-400 bg-white/50 dark:bg-black/10">
                             {chat.groupParticipants?.length} participants
                         </div>
                         {chat.groupParticipants?.map(pid => {
                             const user = users[pid];
                             if (!user) return null;
                             return (
-                                <div key={pid} className="flex items-center gap-4 px-6 py-3 hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover cursor-pointer">
+                                <div key={pid} className="flex items-center gap-4 px-6 py-3 hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 cursor-pointer">
                                     <img src={user.avatar} alt="" className="w-10 h-10 rounded-full" />
                                     <div className="flex-1">
                                         <h3 className="text-base text-[#111b21] dark:text-gray-100 flex justify-between">
@@ -638,12 +646,12 @@ const GroupInfo = () => {
                     </div>
                 )}
 
-                <div className="bg-white dark:bg-wa-dark-header shadow-sm transition-colors">
-                    <div className="flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover text-red-500">
+                <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm shadow-sm transition-colors rounded-lg overflow-hidden">
+                    <div className="flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 text-red-500">
                         <div className="w-6 flex justify-center"><LogOut size={22} /></div>
                         <h3 className="text-base">Exit {isGroup ? 'group' : 'chat'}</h3>
                     </div>
-                    <div className="flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover text-red-500">
+                    <div className="flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 text-red-500">
                         <div className="w-6 flex justify-center"><Trash2 size={22} /></div>
                         <h3 className="text-base">Report {isGroup ? 'group' : 'contact'}</h3>
                     </div>
@@ -654,7 +662,7 @@ const GroupInfo = () => {
           {/* PRIVATE TAB CONTENT */}
           {topTab === 'private' && (
               <div className="animate-in fade-in slide-in-from-right-2 duration-200">
-                  <div className="mx-4 mb-4 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30 flex gap-3">
+                  <div className="mx-4 mb-4 p-4 bg-blue-50/90 dark:bg-blue-900/40 rounded-lg border border-blue-100 dark:border-blue-900/30 flex gap-3 backdrop-blur-sm">
                        <Shield size={24} className="text-blue-500 shrink-0" />
                        <div className="flex-col">
                            <h3 className="text-sm font-bold text-blue-700 dark:text-blue-400 mb-1">Private Secure Zone</h3>
@@ -666,7 +674,7 @@ const GroupInfo = () => {
 
                   {renderMediaSection(true)}
 
-                  <div className="bg-white dark:bg-wa-dark-header mb-3 shadow-sm transition-colors px-6 py-4 mt-3">
+                  <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm mb-3 shadow-sm transition-colors px-6 py-4 mt-3 rounded-lg">
                       <div className="flex items-center gap-4 opacity-50">
                           <div className="w-6 flex justify-center text-wa-gray dark:text-gray-400"><EyeOff size={22} /></div>
                           <div className="flex-1">
@@ -678,10 +686,10 @@ const GroupInfo = () => {
                       </div>
                   </div>
                   
-                  <div className="bg-white dark:bg-wa-dark-header shadow-sm transition-colors px-6 py-4">
+                  <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm shadow-sm transition-colors px-6 py-4 rounded-lg">
                       <button 
                         onClick={() => { setIsPrivateUnlocked(false); setTopTab('public'); }}
-                        className="w-full py-2 border border-wa-teal text-wa-teal rounded-full font-medium text-sm hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover transition-colors"
+                        className="w-full py-2 border border-wa-teal text-wa-teal rounded-full font-medium text-sm hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 transition-colors"
                       >
                           Lock Private View
                       </button>

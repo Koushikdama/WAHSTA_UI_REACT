@@ -1,7 +1,7 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Key, User as UserIcon, Bell, Database, HelpCircle, Heart, Moon, Sun, Edit2, Check, X, Camera, Globe, Sparkles, MessageCircle, ArrowLeft, Palette, Type, Lock, Shield, FileText, Image as ImageIcon, Video, Mic, BarChart2 } from 'lucide-react';
+import { Key, User as UserIcon, Bell, Database, HelpCircle, Heart, Moon, Sun, Edit2, Check, X, Camera, Globe, Sparkles, MessageCircle, ArrowLeft, Palette, Type, Lock, Shield, FileText, Image as ImageIcon, Video, Mic, BarChart2, Upload, Trash2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 const LOGO_EFFECTS = [
@@ -165,12 +165,29 @@ const PasswordSettingsScreen = ({ onClose }: { onClose: () => void }) => {
 
 const ChatSettingsScreen = ({ onClose }: { onClose: () => void }) => {
     const { chatSettings, updateChatSettings, appConfig } = useApp();
+    const chatListBgInputRef = useRef<HTMLInputElement>(null);
+    const contactInfoBgInputRef = useRef<HTMLInputElement>(null);
 
     const getFontSizeClass = () => {
         switch(chatSettings.fontSize) {
             case 'small': return 'text-[13px]';
             case 'large': return 'text-[17px]';
             default: return 'text-[15px]';
+        }
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'chatList' | 'contactInfo') => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                if (type === 'chatList') {
+                    updateChatSettings({ chatListBackgroundImage: reader.result as string });
+                } else {
+                    updateChatSettings({ contactInfoBackgroundImage: reader.result as string });
+                }
+            };
+            reader.readAsDataURL(file);
         }
     };
 
@@ -274,6 +291,88 @@ const ChatSettingsScreen = ({ onClose }: { onClose: () => void }) => {
                                 style={{ backgroundColor: color }}
                             />
                         ))}
+                    </div>
+                </div>
+
+                {/* Background Images */}
+                <div className="mb-8 px-2">
+                    <div className="flex items-center gap-2 mb-3">
+                         <ImageIcon size={20} className="text-wa-gray" />
+                         <h3 className="text-base font-medium text-[#111b21] dark:text-gray-100">Custom Backgrounds</h3>
+                    </div>
+                    
+                    {/* Chat List Background */}
+                    <div className="mb-4">
+                        <label className="text-sm text-[#54656f] dark:text-gray-400 mb-2 block">Chat List Background</label>
+                        <div className="flex items-center gap-3">
+                            <div className="w-16 h-16 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-white/5 overflow-hidden flex items-center justify-center relative group">
+                                {chatSettings.chatListBackgroundImage ? (
+                                    <img src={chatSettings.chatListBackgroundImage} alt="Chat List Bg" className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-xs text-gray-400">None</span>
+                                )}
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <input 
+                                    type="file" 
+                                    accept="image/*" 
+                                    className="hidden" 
+                                    ref={chatListBgInputRef}
+                                    onChange={(e) => handleFileChange(e, 'chatList')}
+                                />
+                                <button 
+                                    onClick={() => chatListBgInputRef.current?.click()}
+                                    className="px-4 py-1.5 bg-wa-teal text-white text-xs rounded-full shadow-sm hover:brightness-110 flex items-center gap-2"
+                                >
+                                    <Upload size={14} /> Upload
+                                </button>
+                                {chatSettings.chatListBackgroundImage && (
+                                    <button 
+                                        onClick={() => updateChatSettings({ chatListBackgroundImage: null })}
+                                        className="px-4 py-1.5 bg-red-100 text-red-600 text-xs rounded-full hover:bg-red-200 flex items-center gap-2"
+                                    >
+                                        <Trash2 size={14} /> Reset
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Contact Info Background */}
+                    <div>
+                        <label className="text-sm text-[#54656f] dark:text-gray-400 mb-2 block">Contact Info Background</label>
+                        <div className="flex items-center gap-3">
+                            <div className="w-16 h-16 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-white/5 overflow-hidden flex items-center justify-center relative group">
+                                {chatSettings.contactInfoBackgroundImage ? (
+                                    <img src={chatSettings.contactInfoBackgroundImage} alt="Contact Info Bg" className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-xs text-gray-400">None</span>
+                                )}
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <input 
+                                    type="file" 
+                                    accept="image/*" 
+                                    className="hidden" 
+                                    ref={contactInfoBgInputRef}
+                                    onChange={(e) => handleFileChange(e, 'contactInfo')}
+                                />
+                                <button 
+                                    onClick={() => contactInfoBgInputRef.current?.click()}
+                                    className="px-4 py-1.5 bg-wa-teal text-white text-xs rounded-full shadow-sm hover:brightness-110 flex items-center gap-2"
+                                >
+                                    <Upload size={14} /> Upload
+                                </button>
+                                {chatSettings.contactInfoBackgroundImage && (
+                                    <button 
+                                        onClick={() => updateChatSettings({ contactInfoBackgroundImage: null })}
+                                        className="px-4 py-1.5 bg-red-100 text-red-600 text-xs rounded-full hover:bg-red-200 flex items-center gap-2"
+                                    >
+                                        <Trash2 size={14} /> Reset
+                                    </button>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

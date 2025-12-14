@@ -1,5 +1,4 @@
 
-
 export interface User {
   id: string;
   name: string;
@@ -98,6 +97,8 @@ export interface ChatSettings {
   appColor: string;
   outgoingBubbleColor: string;
   incomingBubbleColor: string;
+  chatListBackgroundImage?: string | null;
+  contactInfoBackgroundImage?: string | null;
 }
 
 export interface SecuritySettings {

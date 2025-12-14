@@ -11,7 +11,7 @@ type FilterType = 'all' | 'unread' | 'groups';
 const ChatList = () => {
   const navigate = useNavigate();
   const { chatId: activeChatId } = useParams();
-  const { searchQuery, chats, messages, toggleArchiveChat, togglePinChat, securitySettings, users } = useApp();
+  const { searchQuery, chats, messages, toggleArchiveChat, togglePinChat, securitySettings, users, chatSettings } = useApp();
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [isLockModalOpen, setIsLockModalOpen] = useState(false);
   const [pin, setPin] = useState('');
@@ -85,10 +85,10 @@ const ChatList = () => {
       <button 
         onClick={() => setActiveFilter(value)}
         className={`
-            px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap
+            px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap shadow-sm backdrop-blur-sm
             ${activeFilter === value 
                 ? 'bg-[#e7fce3] text-[#008069] dark:bg-[#00a884]/20 dark:text-[#00a884]' 
-                : 'bg-[#f0f2f5] text-[#54656f] hover:bg-[#e9edef] dark:bg-[#202c33] dark:text-[#8696a0] dark:hover:bg-[#2a3942]'
+                : 'bg-[#f0f2f5]/80 text-[#54656f] hover:bg-[#e9edef] dark:bg-[#202c33]/80 dark:text-[#8696a0] dark:hover:bg-[#2a3942]'
             }
         `}
       >
@@ -96,8 +96,21 @@ const ChatList = () => {
       </button>
   );
 
+  const containerStyle = chatSettings.chatListBackgroundImage ? {
+      backgroundImage: `url(${chatSettings.chatListBackgroundImage})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundAttachment: 'fixed'
+  } : {};
+
+  // If we have a background image, we might want a semi-transparent overlay for readability
+  // We'll apply specific background classes to the items instead of the container being fully opaque white
+
   return (
-    <div className="flex flex-col pb-4 bg-white dark:bg-wa-dark-bg min-h-full">
+    <div 
+        className={`flex flex-col pb-4 min-h-full ${!chatSettings.chatListBackgroundImage ? 'bg-white dark:bg-wa-dark-bg' : ''}`}
+        style={containerStyle}
+    >
       {isLockModalOpen && createPortal(
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
             <div className="bg-white dark:bg-wa-dark-paper rounded-lg shadow-xl w-full max-w-xs p-6 flex flex-col items-center">
@@ -136,114 +149,124 @@ const ChatList = () => {
         document.body
       )}
 
-      {!searchQuery && (
-          <div className="flex items-center gap-2 px-4 py-3 overflow-x-auto no-scrollbar">
-              <FilterPill label="All" value="all" />
-              <FilterPill label="Unread" value="unread" />
-              <FilterPill label="Groups" value="groups" />
-          </div>
+      {/* When bg image is set, add a subtle gradient overlay for better text contrast if needed, or rely on item backgrounds */}
+      {chatSettings.chatListBackgroundImage && (
+          <div className="fixed inset-0 bg-white/50 dark:bg-black/50 pointer-events-none z-0 backdrop-blur-[2px]"></div>
       )}
 
-      {!searchQuery && activeFilter === 'all' && archivedCount > 0 && (
-          <div 
-            onClick={handleArchivedClick}
-            className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover transition-colors group"
-          >
-              <div className="w-12 flex items-center justify-center shrink-0">
-                  <Archive size={20} className="text-wa-teal dark:text-wa-teal group-hover:scale-110 transition-transform" />
-              </div>
-              <div className="flex-1 border-b border-wa-border dark:border-wa-dark-border pb-3 -mb-3 flex justify-between items-center">
-                  <div className="font-medium text-[#111b21] dark:text-gray-100 text-[17px]">Archived</div>
-                  <div className="text-[#008069] dark:text-[#00a884] text-xs font-medium mr-1">{archivedCount}</div>
-              </div>
-          </div>
-      )}
+      <div className="relative z-10">
+        {!searchQuery && (
+            <div className="flex items-center gap-2 px-4 py-3 overflow-x-auto no-scrollbar">
+                <FilterPill label="All" value="all" />
+                <FilterPill label="Unread" value="unread" />
+                <FilterPill label="Groups" value="groups" />
+            </div>
+        )}
 
-      {sortedChats.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-[#667781] dark:text-gray-400 text-center px-4">
-              <p>No chats found {searchQuery ? `matching "${searchQuery}"` : `in ${activeFilter}`}</p>
-          </div>
-      ) : (
-          sortedChats.map((chat) => {
-            const user = users[chat.contactId];
-            if (!user && !chat.isGroup) return null;
-
-            const chatMessages = messages[chat.id] || [];
-            const lastMsg = chatMessages.length > 0 ? chatMessages[chatMessages.length - 1] : null;
-            const isTyping = chat.id === 'c1' && Math.random() > 0.8; 
-            const isActive = chat.id === activeChatId;
-
-            return (
-              <div 
-                key={chat.id} 
-                className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors relative group 
-                    ${isActive ? 'bg-[#f0f2f5] dark:bg-[#2a3942]' : 'hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover active:bg-[#e9edef] dark:active:bg-wa-dark-paper'}
-                `}
-                onClick={() => navigate(`/chat/${chat.id}`)}
-              >
-                <div className="relative shrink-0">
-                   <img src={user?.avatar || 'https://picsum.photos/300'} alt={user?.name} className="w-12 h-12 rounded-full object-cover" />
+        {!searchQuery && activeFilter === 'all' && archivedCount > 0 && (
+            <div 
+                onClick={handleArchivedClick}
+                className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-wa-grayBg/80 dark:hover:bg-wa-dark-hover/80 transition-colors group backdrop-blur-sm bg-white/60 dark:bg-wa-dark-bg/60"
+            >
+                <div className="w-12 flex items-center justify-center shrink-0">
+                    <Archive size={20} className="text-wa-teal dark:text-wa-teal group-hover:scale-110 transition-transform" />
                 </div>
-
-                <div className="flex-1 flex flex-col justify-center border-b border-wa-border dark:border-wa-dark-border pb-3 -mb-3 min-w-0">
-                   <div className="flex justify-between items-center mb-0.5">
-                       <h3 className="text-[17px] text-[#111b21] dark:text-gray-100 font-normal truncate">
-                           {chat.isGroup ? chat.groupName : user?.name}
-                       </h3>
-                       <span className={`text-[12px] ${chat.unreadCount > 0 ? 'text-wa-lightGreen font-medium' : 'text-[#667781] dark:text-gray-400'}`}>
-                           {formatTimestamp(chat.timestamp)}
-                       </span>
-                   </div>
-                   
-                   <div className="flex justify-between items-center">
-                       <div className="flex items-center gap-1 text-[14px] text-[#667781] dark:text-gray-400 truncate w-full pr-2">
-                           {lastMsg?.senderId === 'me' && !isTyping && (
-                               lastMsg.status === 'read' 
-                               ? <CheckCheck size={16} className="text-wa-blue shrink-0" /> 
-                               : <Check size={16} className="shrink-0" />
-                           )}
-                           
-                           {isTyping ? (
-                               <span className="text-wa-lightGreen font-medium">typing...</span>
-                           ) : (
-                               <span className="truncate flex items-center gap-1">
-                                   {lastMsg?.type === 'voice' && <Mic size={14} />}
-                                   {lastMsg ? lastMsg.text : 'Start a conversation'}
-                               </span>
-                           )}
-                       </div>
-
-                       <div className="flex items-center gap-1 shrink-0">
-                           {chat.isPinned && <Pin size={16} className="text-[#667781] dark:text-gray-400 rotate-45" fill="currentColor" />}
-                           {chat.unreadCount > 0 && (
-                               <div className="w-5 h-5 rounded-full bg-wa-lightGreen flex items-center justify-center">
-                                   <span className="text-white text-[10px] font-bold">{chat.unreadCount}</span>
-                               </div>
-                           )}
-                       </div>
-                   </div>
+                <div className="flex-1 border-b border-wa-border dark:border-wa-dark-border pb-3 -mb-3 flex justify-between items-center">
+                    <div className="font-medium text-[#111b21] dark:text-gray-100 text-[17px]">Archived</div>
+                    <div className="text-[#008069] dark:text-[#00a884] text-xs font-medium mr-1">{archivedCount}</div>
                 </div>
+            </div>
+        )}
 
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-1 md:flex opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
-                        onClick={(e) => { e.stopPropagation(); togglePinChat(chat.id); }}
-                        className="bg-white dark:bg-wa-dark-paper shadow rounded-full p-1.5 text-wa-gray hover:text-wa-teal transition-colors"
-                        title={chat.isPinned ? "Unpin chat" : "Pin chat"}
-                    >
-                        {chat.isPinned ? <PinOff size={16} /> : <Pin size={16} />}
-                    </button>
-                    <button 
-                        onClick={(e) => { e.stopPropagation(); toggleArchiveChat(chat.id); }}
-                        className="bg-white dark:bg-wa-dark-paper shadow rounded-full p-1.5 text-wa-gray hover:text-wa-teal transition-colors"
-                        title="Archive chat"
-                    >
-                        <Archive size={16} />
-                    </button>
+        {sortedChats.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64 text-[#667781] dark:text-gray-400 text-center px-4 relative z-10">
+                <p className="bg-white/80 dark:bg-black/50 p-2 rounded-lg backdrop-blur-sm">
+                    No chats found {searchQuery ? `matching "${searchQuery}"` : `in ${activeFilter}`}
+                </p>
+            </div>
+        ) : (
+            sortedChats.map((chat) => {
+                const user = users[chat.contactId];
+                if (!user && !chat.isGroup) return null;
+
+                const chatMessages = messages[chat.id] || [];
+                const lastMsg = chatMessages.length > 0 ? chatMessages[chatMessages.length - 1] : null;
+                const isTyping = chat.id === 'c1' && Math.random() > 0.8; 
+                const isActive = chat.id === activeChatId;
+
+                return (
+                <div 
+                    key={chat.id} 
+                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors relative group 
+                        ${isActive ? 'bg-[#f0f2f5]/90 dark:bg-[#2a3942]/90' : 'hover:bg-wa-grayBg/80 dark:hover:bg-wa-dark-hover/80 active:bg-[#e9edef]/80 dark:active:bg-wa-dark-paper/80'}
+                        ${chatSettings.chatListBackgroundImage ? 'bg-white/70 dark:bg-black/60 mb-0.5 backdrop-blur-sm' : ''}
+                    `}
+                    onClick={() => navigate(`/chat/${chat.id}`)}
+                >
+                    <div className="relative shrink-0">
+                    <img src={user?.avatar || 'https://picsum.photos/300'} alt={user?.name} className="w-12 h-12 rounded-full object-cover" />
+                    </div>
+
+                    <div className="flex-1 flex flex-col justify-center border-b border-wa-border dark:border-wa-dark-border pb-3 -mb-3 min-w-0">
+                    <div className="flex justify-between items-center mb-0.5">
+                        <h3 className="text-[17px] text-[#111b21] dark:text-gray-100 font-normal truncate">
+                            {chat.isGroup ? chat.groupName : user?.name}
+                        </h3>
+                        <span className={`text-[12px] ${chat.unreadCount > 0 ? 'text-wa-lightGreen font-medium' : 'text-[#667781] dark:text-gray-400'}`}>
+                            {formatTimestamp(chat.timestamp)}
+                        </span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-1 text-[14px] text-[#667781] dark:text-gray-400 truncate w-full pr-2">
+                            {lastMsg?.senderId === 'me' && !isTyping && (
+                                lastMsg.status === 'read' 
+                                ? <CheckCheck size={16} className="text-wa-blue shrink-0" /> 
+                                : <Check size={16} className="shrink-0" />
+                            )}
+                            
+                            {isTyping ? (
+                                <span className="text-wa-lightGreen font-medium">typing...</span>
+                            ) : (
+                                <span className="truncate flex items-center gap-1">
+                                    {lastMsg?.type === 'voice' && <Mic size={14} />}
+                                    {lastMsg ? lastMsg.text : 'Start a conversation'}
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                            {chat.isPinned && <Pin size={16} className="text-[#667781] dark:text-gray-400 rotate-45" fill="currentColor" />}
+                            {chat.unreadCount > 0 && (
+                                <div className="w-5 h-5 rounded-full bg-wa-lightGreen flex items-center justify-center">
+                                    <span className="text-white text-[10px] font-bold">{chat.unreadCount}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    </div>
+
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-1 md:flex opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); togglePinChat(chat.id); }}
+                            className="bg-white dark:bg-wa-dark-paper shadow rounded-full p-1.5 text-wa-gray hover:text-wa-teal transition-colors"
+                            title={chat.isPinned ? "Unpin chat" : "Pin chat"}
+                        >
+                            {chat.isPinned ? <PinOff size={16} /> : <Pin size={16} />}
+                        </button>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); toggleArchiveChat(chat.id); }}
+                            className="bg-white dark:bg-wa-dark-paper shadow rounded-full p-1.5 text-wa-gray hover:text-wa-teal transition-colors"
+                            title="Archive chat"
+                        >
+                            <Archive size={16} />
+                        </button>
+                    </div>
                 </div>
-              </div>
-            );
-          })
-      )}
+                );
+            })
+        )}
+      </div>
       <div className="h-20 md:hidden"></div>
     </div>
   );

@@ -49,7 +49,9 @@ const DEFAULT_CHAT_SETTINGS: ChatSettings = {
     fontSize: 'medium',
     appColor: '#008069',
     outgoingBubbleColor: '#D9FDD3',
-    incomingBubbleColor: '#FFFFFF'
+    incomingBubbleColor: '#FFFFFF',
+    chatListBackgroundImage: null,
+    contactInfoBackgroundImage: null
 };
 
 const DEFAULT_SECURITY_SETTINGS: SecuritySettings = {
