@@ -1,10 +1,11 @@
+
 import React from 'react';
 import { Minus, X, Trophy, Dice5, Gamepad2 } from 'lucide-react';
 import { useGame } from '../../context/GameContext';
 import { GameType } from '../../types';
-import ChessGame from './ChessGame';
-import LudoGame from './LudoGame';
-import SnakeLaddersGame from './SnakeLaddersGame';
+import ChessGame from './chess/ChessGame';
+import LudoGame from './ludo/LudoGame';
+import SnakeLaddersGame from './snake-ladders/SnakeLaddersGame';
 
 const FloatingGameView = () => {
     const { activeGame, closeGame, minimizeGame, maximizeGame } = useGame();
@@ -55,10 +56,10 @@ const FloatingGameView = () => {
 
     // Maximized State
     return (
-        <div className="fixed inset-0 md:inset-auto md:bottom-4 md:right-4 md:w-[400px] md:h-[600px] z-50 flex flex-col bg-white dark:bg-[#111b21] md:rounded-xl md:shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 md:border border-gray-200 dark:border-gray-700">
+        <div className="fixed inset-0 md:inset-auto md:bottom-4 md:right-4 md:w-[400px] md:h-[650px] z-50 flex flex-col bg-white dark:bg-[#111b21] md:rounded-xl md:shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 md:border border-gray-200 dark:border-gray-700">
             
             {/* Header */}
-            <div className={`${getColor(activeGame.type)} p-3 flex justify-between items-center text-white shrink-0`}>
+            <div className={`${getColor(activeGame.type)} p-3 flex justify-between items-center text-white shrink-0 shadow-sm z-10`}>
                 <div className="flex items-center gap-2">
                     {getIcon(activeGame.type)}
                     <span className="font-medium">{getTitle(activeGame.type)}</span>
@@ -74,8 +75,8 @@ const FloatingGameView = () => {
             </div>
 
             {/* Game Content */}
-            <div className="flex-1 flex flex-col bg-gray-100 dark:bg-[#0b141a] relative overflow-y-auto">
-                <div className="flex-1 flex items-center justify-center p-4">
+            <div className="flex-1 flex flex-col bg-gray-100 dark:bg-[#0b141a] relative overflow-hidden">
+                <div className="flex-1 flex items-center justify-center p-0 md:p-2 h-full w-full">
                     {activeGame.type === 'chess' && <ChessGame />}
                     {activeGame.type === 'ludo' && <LudoGame />}
                     {activeGame.type === 'snake' && <SnakeLaddersGame />}

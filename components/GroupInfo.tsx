@@ -48,29 +48,49 @@ const GroupInfo = () => {
   const chatMessages = messages[chat.id] || [];
   const pinnedMessages = chatMessages.filter(m => m.isPinned);
 
-  // Documents
+  // --- Filtering Logic for Locked Dates ---
+  const isDateLocked = (timestamp: string) => {
+      try {
+          const dateStr = new Date(timestamp).toLocaleDateString();
+          return chat.hiddenDates?.includes(dateStr);
+      } catch (e) {
+          return false;
+      }
+  };
+
+  // Filter Messages based on visibility (Public vs Private)
+  const allImages = chatMessages.filter(m => m.type === 'image');
+  const allVideos = chatMessages.filter(m => m.type === 'video');
+
+  const publicImages = allImages.filter(m => !isDateLocked(m.timestamp));
+  const publicVideos = allVideos.filter(m => !isDateLocked(m.timestamp));
+  
+  const privateImages = allImages.filter(m => isDateLocked(m.timestamp));
+  const privateVideos = allVideos.filter(m => isDateLocked(m.timestamp));
+
+  // Documents (Note: In this demo data, documents don't have ISO timestamps, so we default them to Public to avoid hiding valid docs)
+  // If real timestamps were available, we would filter them too.
   const documents = (chatId && chatDocuments[chatId]) ? chatDocuments[chatId] : [];
 
-  // Media Filtering logic
-  const images = chatMessages.filter(m => m.type === 'image');
-  const videos = chatMessages.filter(m => m.type === 'video');
-  const allMedia = [...images, ...videos].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  // Determine active media based on tab
+  const activeImages = topTab === 'private' ? privateImages : publicImages;
+  const activeVideos = topTab === 'private' ? privateVideos : publicVideos;
+  const activeAllMedia = [...activeImages, ...activeVideos].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-  // Analysis Calculations
-  const textCount = chatMessages.filter(m => m.type === 'text').length;
-  const imageCount = images.length;
-  const videoCount = videos.length;
-  const docCount = documents.length;
+  // Analysis Calculations (Based on current view)
+  // For analysis, we might want to show Total vs Hidden, but here we show stats for the *visible* content in the current tab
+  const activeMessages = chatMessages.filter(m => topTab === 'private' ? isDateLocked(m.timestamp) : !isDateLocked(m.timestamp));
+  const textCount = activeMessages.filter(m => m.type === 'text').length;
   
   const stats = {
-      images: { count: imageCount, size: imageCount * 1.5, color: '#008069' },
-      videos: { count: videoCount, size: videoCount * 15, color: '#34B7F1' },
-      docs: { count: docCount, size: 4.5, color: '#FFB347' }, 
+      images: { count: activeImages.length, size: activeImages.length * 1.5, color: '#008069' },
+      videos: { count: activeVideos.length, size: activeVideos.length * 15, color: '#34B7F1' },
+      docs: { count: documents.length, size: 4.5, color: '#FFB347' }, 
       text: { count: textCount, size: textCount * 0.0005, color: '#8696a0' }
   };
   
   const totalSize = stats.images.size + stats.videos.size + stats.docs.size + stats.text.size;
-  const totalMsgs = chatMessages.length;
+  const totalMsgs = activeMessages.length;
 
   const title = isGroup ? chat.groupName : contact?.name;
   const subtitle = isGroup ? `Group · ${chat.groupParticipants?.length} participants` : contact?.phone;
@@ -97,9 +117,11 @@ const GroupInfo = () => {
   };
 
   const handleAuthVerify = () => {
+      // Use Daily Lock (1234) for Private Tab access
+      // Use Chat Lock (0000) for locking the chat itself
       const requiredPin = authMode === 'private_tab' 
-        ? (securitySettings.dailyLockPassword || '1234') // Use Daily lock for Private Tab
-        : (securitySettings.chatLockPassword || '0000'); // Use Chat lock for locking chat
+        ? (securitySettings.dailyLockPassword || '1234') 
+        : (securitySettings.chatLockPassword || '0000'); 
 
       if (authPin === requiredPin) {
           if (authMode === 'private_tab') {
@@ -125,7 +147,7 @@ const GroupInfo = () => {
   // --- Render Helpers ---
 
   const renderMediaContent = (isPrivateContext: boolean) => {
-      // CRITICAL: If in Public Tab and Chat is Locked, Hide Media
+      // If we are in public context but chat is locked, we hide everything (redundant safety)
       if (!isPrivateContext && chat.isLocked) {
           return (
               <div className="flex flex-col items-center justify-center py-10 px-4 text-center bg-gray-50 dark:bg-white/5 mx-4 mb-4 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
@@ -134,7 +156,7 @@ const GroupInfo = () => {
                   </div>
                   <h4 className="text-sm font-medium text-[#111b21] dark:text-gray-100">Media Locked</h4>
                   <p className="text-xs text-[#667781] dark:text-gray-500 mt-1 max-w-[220px]">
-                      Media and documents are hidden because this chat is locked. Switch to the <strong>Private</strong> tab to view.
+                      Media is hidden because this chat is locked.
                   </p>
               </div>
           );
@@ -144,9 +166,9 @@ const GroupInfo = () => {
           case 'all':
               return (
                   <div className="p-1">
-                      {allMedia.length > 0 ? (
+                      {activeAllMedia.length > 0 ? (
                         <div className="grid grid-cols-3 gap-1">
-                            {allMedia.slice(0, 9).map((m) => (
+                            {activeAllMedia.slice(0, 9).map((m) => (
                                 <div key={m.id} className="aspect-square relative cursor-pointer bg-gray-100 dark:bg-gray-800">
                                     {m.type === 'image' && <img src={m.mediaUrl || m.mediaUrls?.[0]} className="w-full h-full object-cover" alt="" />}
                                     {m.type === 'video' && (
@@ -158,9 +180,11 @@ const GroupInfo = () => {
                             ))}
                         </div>
                       ) : (
-                          <div className="py-8 text-center text-[#667781] dark:text-gray-500 text-sm">No media found</div>
+                          <div className="py-8 text-center text-[#667781] dark:text-gray-500 text-sm">
+                              {isPrivateContext ? 'No private media found' : 'No public media found'}
+                          </div>
                       )}
-                      {allMedia.length > 9 && (
+                      {activeAllMedia.length > 9 && (
                           <button className="w-full py-3 text-wa-teal text-sm font-medium hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover transition-colors">
                               View all media
                           </button>
@@ -170,9 +194,9 @@ const GroupInfo = () => {
           case 'images':
               return (
                   <div className="p-1">
-                      {images.length > 0 ? (
+                      {activeImages.length > 0 ? (
                         <div className="grid grid-cols-3 gap-1">
-                            {images.map((m) => (
+                            {activeImages.map((m) => (
                                 <div key={m.id} className="aspect-square relative cursor-pointer">
                                     <img src={m.mediaUrl || m.mediaUrls?.[0]} className="w-full h-full object-cover" alt="" />
                                 </div>
@@ -186,9 +210,9 @@ const GroupInfo = () => {
           case 'videos':
               return (
                   <div className="p-1">
-                      {videos.length > 0 ? (
+                      {activeVideos.length > 0 ? (
                         <div className="grid grid-cols-3 gap-1">
-                            {videos.map((m) => (
+                            {activeVideos.map((m) => (
                                 <div key={m.id} className="aspect-square relative cursor-pointer bg-black/80 flex items-center justify-center text-white">
                                     <VideoIcon size={32} />
                                     <span className="absolute bottom-1 right-1 text-[10px] bg-black/60 px-1 rounded">{m.duration}</span>
@@ -201,6 +225,9 @@ const GroupInfo = () => {
                   </div>
               );
           case 'doc':
+               // Documents are currently global in this demo
+               if (isPrivateContext) return <div className="py-8 text-center text-[#667781] dark:text-gray-500 text-sm">No private documents</div>;
+               
                return (
                    <div className="flex flex-col">
                        {documents.length > 0 ? documents.map(doc => (
@@ -233,7 +260,7 @@ const GroupInfo = () => {
                return (
                    <div className="p-5">
                        <div className="flex flex-col items-center mb-6">
-                           <h4 className="text-sm font-medium text-[#111b21] dark:text-gray-100 mb-4 self-start">Storage Usage</h4>
+                           <h4 className="text-sm font-medium text-[#111b21] dark:text-gray-100 mb-4 self-start">{isPrivateContext ? 'Private Storage' : 'Public Storage'}</h4>
                            <div className="relative w-48 h-48">
                                <svg viewBox="0 0 100 100" className="transform -rotate-90 w-full h-full">
                                    <circle cx="50" cy="50" r={R} stroke="#e9edef" strokeWidth="12" fill="none" className="dark:stroke-gray-700" />
@@ -276,7 +303,7 @@ const GroupInfo = () => {
                        </div>
 
                        <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
-                           <h4 className="text-sm font-medium text-[#111b21] dark:text-gray-100 mb-3">Activity Breakdown</h4>
+                           <h4 className="text-sm font-medium text-[#111b21] dark:text-gray-100 mb-3">{isPrivateContext ? 'Private Activity' : 'Public Activity'}</h4>
                            <div className="space-y-3">
                                <div className="flex justify-between items-center text-sm">
                                     <span className="text-[#667781] dark:text-gray-400">Total Messages</span>
@@ -318,11 +345,11 @@ const GroupInfo = () => {
            >
                 <div className="flex flex-col">
                     <h3 className="text-sm text-[#667781] dark:text-gray-400 font-medium flex items-center gap-2">
-                        {isPrivateContext ? 'Private Media & Docs' : 'Media, Docs & Analysis'}
+                        {isPrivateContext ? 'Private Media' : 'Media, Docs & Analysis'}
                         <ChevronDown size={14} className={`transition-transform duration-200 ${isMediaDropdownOpen ? 'rotate-180' : ''}`} />
                     </h3>
                     <p className="text-[10px] text-gray-400">
-                        {isPrivateContext ? 'Secured content only' : `${allMedia.length} files • ${documents.length} docs`}
+                        {isPrivateContext ? `${activeAllMedia.length} secured files` : `${activeAllMedia.length} files • ${documents.length} docs`}
                     </p>
                 </div>
 
@@ -409,7 +436,7 @@ const GroupInfo = () => {
                       {authMode === 'private_tab' ? 'Private Access' : (chat.isLocked ? 'Unlock Chat' : 'Lock Chat')}
                   </h3>
                   <p className="text-sm text-[#667781] dark:text-gray-400 mb-6 text-center">
-                      Enter {authMode === 'private_tab' ? 'App Lock' : 'Chat Lock'} PIN
+                      Enter {authMode === 'private_tab' ? 'App Lock (1234)' : 'Chat Lock (0000)'} PIN
                   </p>
                   
                   <input 
@@ -644,7 +671,9 @@ const GroupInfo = () => {
                           <div className="w-6 flex justify-center text-wa-gray dark:text-gray-400"><EyeOff size={22} /></div>
                           <div className="flex-1">
                               <h3 className="text-base text-[#111b21] dark:text-gray-100">Hidden Messages</h3>
-                              <p className="text-xs text-[#667781] dark:text-gray-500">0 hidden messages in this chat</p>
+                              <p className="text-xs text-[#667781] dark:text-gray-500">
+                                  {chat.hiddenDates?.length || 0} locked dates found
+                              </p>
                           </div>
                       </div>
                   </div>

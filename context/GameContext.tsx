@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState } from 'react';
 import { Game, GameType, GamePlayer } from '../types';
 import { useApp } from './AppContext';
@@ -5,8 +6,8 @@ import { useApp } from './AppContext';
 interface GameContextType {
   activeGame: Game | null;
   isGameInviteOpen: boolean;
-  inviteOptions: { isGroup: boolean };
-  openGameInvite: (options?: { isGroup: boolean }) => void;
+  inviteOptions: { isGroup: boolean; chatId?: string; opponentId?: string };
+  openGameInvite: (options?: { isGroup: boolean; chatId?: string; opponentId?: string }) => void;
   closeGameInvite: () => void;
   createGame: (type: GameType, chatId: string, opponentId: string) => void;
   closeGame: () => void;
@@ -20,9 +21,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { currentUserId } = useApp();
   const [activeGame, setActiveGame] = useState<Game | null>(null);
   const [isGameInviteOpen, setIsGameInviteOpen] = useState(false);
-  const [inviteOptions, setInviteOptions] = useState({ isGroup: false });
+  const [inviteOptions, setInviteOptions] = useState<{ isGroup: boolean; chatId?: string; opponentId?: string }>({ isGroup: false });
 
-  const openGameInvite = (options?: { isGroup: boolean }) => {
+  const openGameInvite = (options?: { isGroup: boolean; chatId?: string; opponentId?: string }) => {
       if (options) {
           setInviteOptions(options);
       } else {

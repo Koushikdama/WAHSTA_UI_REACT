@@ -39,6 +39,7 @@ interface AppContextType {
   updateChatTheme: (chatId: string, color: string, type: 'outgoing' | 'incoming') => void;
   toggleChatLock: (chatId: string) => void;
   toggleDateLock: (chatId: string, dateString: string) => void;
+  addStatusUpdate: (status: StatusUpdate) => void;
   loading: boolean;
 }
 
@@ -371,6 +372,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }));
   };
 
+  const addStatusUpdate = (status: StatusUpdate) => {
+      setStatusUpdates(prev => [status, ...prev]);
+  };
+
   if (dataLoading) {
      return (
         <div className="flex flex-col items-center justify-center h-screen bg-[#EFEAE2] dark:bg-[#111b21] gap-4">
@@ -417,6 +422,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateChatTheme,
         toggleChatLock,
         toggleDateLock,
+        addStatusUpdate,
         loading: dataLoading
     }}>
       {children}

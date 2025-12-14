@@ -126,7 +126,9 @@ const ChatWindow = () => {
 
     const handleLockVerify = (e: React.FormEvent) => {
         e.preventDefault();
-        const correctPin = securitySettings.chatLockPassword || '0000';
+        // Use Daily Lock Password (1234) for Date Lock features
+        const correctPin = securitySettings.dailyLockPassword || '1234';
+        
         if (lockPin === correctPin) {
             if (chatId && dateLockTarget) {
                 toggleDateLock(chatId, dateLockTarget);
@@ -197,7 +199,7 @@ const ChatWindow = () => {
                             {chat.hiddenDates?.includes(dateLockTarget) ? 'Unlock Date' : 'Lock Date'}
                         </h3>
                         <p className="text-xs text-[#667781] dark:text-gray-400 mb-6 text-center">
-                            Enter PIN to {chat.hiddenDates?.includes(dateLockTarget) ? 'show' : 'hide'} messages from <br/><strong>{dateLockTarget}</strong>
+                            Enter Daily PIN (1234) to {chat.hiddenDates?.includes(dateLockTarget) ? 'show' : 'hide'} messages from <br/><strong>{dateLockTarget}</strong>
                         </p>
                         
                         <form onSubmit={handleLockVerify} className="w-full flex flex-col items-center">
@@ -291,7 +293,15 @@ const ChatWindow = () => {
                     
                     <div className="flex items-center gap-2 md:gap-4 text-wa-teal dark:text-wa-teal shrink-0">
                         {!chat.isLocked && (
-                            <button onClick={() => openGameInvite({ isGroup: chat.isGroup })} className="hidden md:block p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-full" title="Play Game">
+                            <button 
+                                onClick={() => openGameInvite({ 
+                                    isGroup: chat.isGroup, 
+                                    chatId: chat.id, 
+                                    opponentId: chat.isGroup ? 'group' : chat.contactId 
+                                })} 
+                                className="p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-full md:block hidden" 
+                                title="Play Game"
+                            >
                                 <span className="text-xl">🎮</span>
                             </button>
                         )}
@@ -327,6 +337,24 @@ const ChatWindow = () => {
                                         >
                                             {chat.isGroup ? 'Group info' : 'Contact info'}
                                         </button>
+                                        
+                                        {!chat.isLocked && (
+                                            <button 
+                                                onClick={() => { 
+                                                    openGameInvite({ 
+                                                        isGroup: chat.isGroup, 
+                                                        chatId: chat.id, 
+                                                        opponentId: chat.isGroup ? 'group' : chat.contactId 
+                                                    }); 
+                                                    setIsMenuOpen(false); 
+                                                }}
+                                                className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-wa-dark-hover text-[#111b21] dark:text-gray-100 text-[15px] flex items-center gap-2"
+                                            >
+                                                <span>Play Game</span>
+                                                <span className="text-sm">🎮</span>
+                                            </button>
+                                        )}
+
                                         <button 
                                             onClick={() => { setIsSearchOpen(true); setIsMenuOpen(false); }}
                                             className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-wa-dark-hover text-[#111b21] dark:text-gray-100 text-[15px]"

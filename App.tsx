@@ -22,7 +22,12 @@ import CallOverlay from './components/CallOverlay'; // Import Call Overlay
 const GlobalGameUI = () => {
     const { isGameInviteOpen, closeGameInvite, createGame, inviteOptions } = useGame();
     const handleGameSelect = (type: any) => {
-        createGame(type, 'current-chat-id', 'opponent-id');
+        if (inviteOptions.chatId && inviteOptions.opponentId) {
+            createGame(type, inviteOptions.chatId, inviteOptions.opponentId);
+        } else {
+            console.error("Game initialization failed: Missing chat context");
+            closeGameInvite();
+        }
     };
 
     return (
@@ -278,18 +283,6 @@ const MobileLayout = () => {
                          <Phone className="fill-white" size={24} />
                          <Plus size={14} strokeWidth={3} className="absolute top-2 right-2 text-white" />
                      </div>
-                 )}
-
-                 {/* Status FABs */}
-                 {location.pathname === '/status' && (
-                    <>
-                      <div className="absolute bottom-24 right-6 w-10 h-10 bg-wa-grayBg dark:bg-wa-dark-paper shadow-md rounded-full flex items-center justify-center text-[#54656f] dark:text-white transition-colors cursor-pointer z-20 hover:scale-105">
-                           <Edit2 size={18} />
-                      </div>
-                      <div className="absolute bottom-6 right-5 w-14 h-14 bg-wa-teal dark:bg-wa-tealDark shadow-[0_4px_10px_rgba(0,0,0,0.3)] rounded-full flex items-center justify-center text-white transition-colors cursor-pointer z-20 hover:scale-105">
-                           <Camera size={24} />
-                      </div>
-                    </>
                  )}
             </div>
 
