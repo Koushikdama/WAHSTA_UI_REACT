@@ -110,6 +110,7 @@ export interface ChatSettings {
   incomingBubbleColor: string;
   chatListBackgroundImage?: string | null;
   contactInfoBackgroundImage?: string | null;
+  translationLanguage: string;
 }
 
 export interface SecuritySettings {

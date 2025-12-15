@@ -614,12 +614,13 @@ const StorageSettingsScreen = ({ onClose }: { onClose: () => void }) => {
 
 const SettingsTab = () => {
   const navigate = useNavigate();
-  const { theme, toggleTheme, currentUser, updateUserProfile, language, setLanguage, logoEffect, setLogoEffect, appConfig } = useApp();
+  const { theme, toggleTheme, currentUser, updateUserProfile, language, setLanguage, logoEffect, setLogoEffect, appConfig, chatSettings, updateChatSettings } = useApp();
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(currentUser.name);
   const [editAbout, setEditAbout] = useState(currentUser.about);
   const [editAvatar, setEditAvatar] = useState(currentUser.avatar);
   const [showLangModal, setShowLangModal] = useState(false);
+  const [showTransLangModal, setShowTransLangModal] = useState(false);
   const [showEffectModal, setShowEffectModal] = useState(false);
   const [showChatSettings, setShowChatSettings] = useState(false);
   const [showPasswordSettings, setShowPasswordSettings] = useState(false);
@@ -694,6 +695,32 @@ const SettingsTab = () => {
                             >
                                 <span className="text-[#111b21] dark:text-gray-100">{lang}</span>
                                 {language === lang && <Check size={20} className="text-wa-teal" />}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* Translation Language Modal */}
+        {showTransLangModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                <div className="bg-white dark:bg-wa-dark-paper rounded-lg shadow-xl w-full max-w-sm flex flex-col max-h-[80vh]">
+                    <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                        <h3 className="text-lg font-medium text-[#111b21] dark:text-gray-100">Translation Target Language</h3>
+                        <button onClick={() => setShowTransLangModal(false)}>
+                            <X size={24} className="text-gray-500" />
+                        </button>
+                    </div>
+                    <div className="overflow-y-auto p-2">
+                        {LANGUAGES.map(lang => (
+                            <div 
+                                key={lang} 
+                                onClick={() => { updateChatSettings({ translationLanguage: lang }); setShowTransLangModal(false); }}
+                                className="flex items-center justify-between p-3 hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover rounded-lg cursor-pointer"
+                            >
+                                <span className="text-[#111b21] dark:text-gray-100">{lang}</span>
+                                {chatSettings.translationLanguage === lang && <Check size={20} className="text-wa-teal" />}
                             </div>
                         ))}
                     </div>
@@ -821,6 +848,13 @@ const SettingsTab = () => {
             />
 
             <SettingItem 
+                onClick={() => setShowTransLangModal(true)}
+                icon={<LanguagesIcon />} 
+                label="Translation Language" 
+                sub={chatSettings.translationLanguage || 'Select language'} 
+            />
+
+            <SettingItem 
                 onClick={() => setShowEffectModal(true)}
                 icon={<Sparkles size={24}/>} 
                 label="Logo Effects" 
@@ -859,5 +893,17 @@ const SettingsTab = () => {
     </div>
   );
 };
+
+// Simple Icon Component for reuse
+const LanguagesIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m5 8 6 6" />
+        <path d="m4 14 6-6 2-3" />
+        <path d="M2 5h12" />
+        <path d="M7 2h1" />
+        <path d="m22 22-5-10-5 10" />
+        <path d="M14 18h6" />
+    </svg>
+);
 
 export default SettingsTab;

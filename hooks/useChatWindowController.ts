@@ -23,6 +23,7 @@ export const useChatWindowController = () => {
     // Local State (View State)
     const [inputText, setInputText] = useState('');
     const [showPicker, setShowPicker] = useState(false);
+    const [showAttachMenu, setShowAttachMenu] = useState(false);
     const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
     const [replyTo, setReplyTo] = useState<Message | null>(null);
     const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -70,6 +71,7 @@ export const useChatWindowController = () => {
         addMessage(chatId, inputText, 'text', replyTo?.id);
         setInputText('');
         setReplyTo(null);
+        setShowAttachMenu(false); // Close menu on send
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -171,6 +173,7 @@ export const useChatWindowController = () => {
         // State
         inputText, setInputText,
         showPicker, setShowPicker,
+        showAttachMenu, setShowAttachMenu,
         activeMessageId, setActiveMessageId,
         replyTo, setReplyTo,
         isSelectionMode, setIsSelectionMode,
@@ -200,6 +203,7 @@ export const useChatWindowController = () => {
         toggleSelection,
         handleDeleteSelected,
         handleLockVerify,
+        addMessage, // Expose addMessage for custom media sending
         
         // Navigation / External
         navigateToChats,

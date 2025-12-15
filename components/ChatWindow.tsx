@@ -1,18 +1,78 @@
 
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { 
   ArrowLeft, MoreVertical, Phone, Video as VideoIcon, Search, Smile, Paperclip, Mic, Send, 
   Check, CheckCheck, Reply, Trash2, Star, Forward, Info, X,
-  Languages, Pin, Lock, ArrowUp, ArrowDown, CheckSquare,
+  Languages, Pin, Lock, ArrowUp, ArrowDown, CheckSquare, Globe,
+  FileText, Camera, Image as ImageIcon, Headphones, MapPin, User, BarChart2, PenTool
 } from 'lucide-react';
 import { useChatWindowController } from '../hooks/useChatWindowController';
 import MediaCarousel from './media/MediaCarousel';
 import VideoMessage from './media/VideoMessage';
+import DrawingCanvas from './media/DrawingCanvas';
 
 const REACTIONS_LIST = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
+const mockTranslate = (text: string, lang: string): string => {
+    const dictionary: Record<string, Record<string, string>> = {
+        'Spanish': {
+            'Hello': 'Hola',
+            'How are you?': '¿Cómo estás?',
+            'Good morning': 'Buenos días',
+            'Good night': 'Buenas noches',
+            'Thank you': 'Gracias'
+        },
+        'French': {
+            'Hello': 'Bonjour',
+            'How are you?': 'Comment allez-vous?',
+            'Good morning': 'Bonjour',
+            'Good night': 'Bonne nuit',
+            'Thank you': 'Merci'
+        },
+        'German': {
+            'Hello': 'Hallo',
+            'How are you?': 'Wie geht es dir?',
+            'Good morning': 'Guten Morgen',
+            'Good night': 'Gute Nacht',
+            'Thank you': 'Danke'
+        },
+        'Japanese': {
+            'Hello': 'こんにちは',
+            'How are you?': 'お元気ですか？',
+            'Good morning': 'おはようございます',
+            'Good night': 'おやすみなさい',
+            'Thank you': 'ありがとうございます'
+        },
+        'Arabic': {
+            'Hello': 'مرحبا',
+            'How are you?': 'كيف حالك؟',
+            'Good morning': 'صباح الخير',
+            'Good night': 'تصبح على خير',
+            'Thank you': 'شكرا لك'
+        }
+    };
+
+    if (dictionary[lang] && dictionary[lang][text]) {
+        return dictionary[lang][text];
+    }
+    
+    // Fallback simulation for general text
+    return `[${lang} Translation]: ${text}`;
+}
+
+const AttachmentIcon = ({ icon, color, label, onClick }: { icon: React.ReactNode, color: string, label: string, onClick?: () => void }) => (
+    <div className="flex flex-col items-center gap-2 cursor-pointer transition-transform active:scale-95 hover:scale-105" onClick={onClick}>
+        <div className={`w-14 h-14 rounded-full ${color} flex items-center justify-center text-white shadow-lg`}>
+            {icon}
+        </div>
+        <span className="text-xs text-[#54656f] dark:text-gray-300 font-medium">{label}</span>
+    </div>
+);
+
 const ChatWindow = () => {
     const ctrl = useChatWindowController();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isDrawing, setIsDrawing] = useState(false);
 
     if (!ctrl.chat) return (
         <div className="flex flex-col items-center justify-center h-full text-gray-500 bg-wa-bg">
@@ -49,11 +109,36 @@ const ChatWindow = () => {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
+    const handleAttachmentSelect = (type: string) => {
+        if (type === 'gallery' || type === 'document' || type === 'camera') {
+            // Trigger hidden file input for visual effect
+            fileInputRef.current?.click();
+        } else if (type === 'draw') {
+            setIsDrawing(true);
+        } else {
+            // Placeholder for other types
+            alert(`${type} feature coming soon!`);
+        }
+        ctrl.setShowAttachMenu(false);
+    };
+
+    const handleDrawingSend = (dataUrl: string) => {
+        if (ctrl.chatId) {
+            ctrl.addMessage(ctrl.chatId, "🎨 Drawing", 'image', undefined, dataUrl);
+        }
+        setIsDrawing(false);
+    };
+
     return (
         <div className="flex flex-col h-full bg-[#EFEAE2] dark:bg-[#0b141a] relative">
             <div className="absolute inset-0 opacity-40 pointer-events-none z-0" 
                  style={{ backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")', backgroundRepeat: 'repeat', backgroundSize: '400px' }}>
             </div>
+
+            {/* Drawing Canvas Modal */}
+            {isDrawing && (
+                <DrawingCanvas onClose={() => setIsDrawing(false)} onSend={handleDrawingSend} />
+            )}
 
             {/* Date Lock Modal */}
             {ctrl.dateLockTarget && (
@@ -211,7 +296,21 @@ const ChatWindow = () => {
                                                                 </div>
                                                             ) : (
                                                                 <div className="relative">
-                                                                    <span className="whitespace-pre-wrap break-words text-[#111b21] dark:text-gray-100">{displayText}<span className="inline-block w-16 h-3"></span></span>
+                                                                    <span className="whitespace-pre-wrap break-words text-[#111b21] dark:text-gray-100">{displayText}</span>
+                                                                    
+                                                                    {isTranslated && (
+                                                                        <div className="mt-2 pt-1 border-t border-black/10 dark:border-white/10 animate-in fade-in duration-300">
+                                                                            <div className="flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400 mb-0.5">
+                                                                                <Globe size={10} />
+                                                                                <span className="uppercase">Translated to {ctrl.chatSettings.translationLanguage}</span>
+                                                                            </div>
+                                                                            <p className="whitespace-pre-wrap break-words text-[#111b21] dark:text-gray-100 italic">
+                                                                                {mockTranslate(msg.text, ctrl.chatSettings.translationLanguage)}
+                                                                            </p>
+                                                                        </div>
+                                                                    )}
+
+                                                                    <span className="inline-block w-16 h-3"></span>
                                                                     <span className="absolute bottom-[-3px] right-0 flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400 select-none whitespace-nowrap">{formattedTime} <StatusIcon /></span>
                                                                 </div>
                                                             )}
@@ -264,9 +363,79 @@ const ChatWindow = () => {
                     </button>
                 </div>
             ) : (
-                <div className="p-2 md:p-3 bg-wa-grayBg dark:bg-wa-dark-header border-t border-wa-border dark:border-wa-dark-border z-10 flex items-center gap-2">
+                <div className="p-2 md:p-3 bg-wa-grayBg dark:bg-wa-dark-header border-t border-wa-border dark:border-wa-dark-border z-10 flex items-center gap-2 relative">
+                    
+                    {/* Attachment Menu */}
+                    {ctrl.showAttachMenu && (
+                        <div className="absolute bottom-20 left-4 bg-white dark:bg-wa-dark-paper rounded-2xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.15)] dark:shadow-black/50 border border-gray-100 dark:border-gray-700 animate-in slide-in-from-bottom-5 fade-in zoom-in-95 duration-200 w-[90%] max-w-[350px] z-50">
+                            <div className="grid grid-cols-3 gap-y-6 gap-x-4">
+                                <AttachmentIcon 
+                                    icon={<FileText size={24} />} 
+                                    color="bg-indigo-500" 
+                                    label="Document" 
+                                    onClick={() => handleAttachmentSelect('document')}
+                                />
+                                <AttachmentIcon 
+                                    icon={<Camera size={24} />} 
+                                    color="bg-pink-500" 
+                                    label="Camera" 
+                                    onClick={() => handleAttachmentSelect('camera')}
+                                />
+                                <AttachmentIcon 
+                                    icon={<ImageIcon size={24} />} 
+                                    color="bg-purple-500" 
+                                    label="Gallery" 
+                                    onClick={() => handleAttachmentSelect('gallery')}
+                                />
+                                <AttachmentIcon 
+                                    icon={<Headphones size={24} />} 
+                                    color="bg-orange-500" 
+                                    label="Audio" 
+                                    onClick={() => handleAttachmentSelect('audio')}
+                                />
+                                <AttachmentIcon 
+                                    icon={<MapPin size={24} />} 
+                                    color="bg-green-500" 
+                                    label="Location" 
+                                    onClick={() => handleAttachmentSelect('location')}
+                                />
+                                <AttachmentIcon 
+                                    icon={<User size={24} />} 
+                                    color="bg-blue-500" 
+                                    label="Contact" 
+                                    onClick={() => handleAttachmentSelect('contact')}
+                                />
+                                <AttachmentIcon 
+                                    icon={<BarChart2 size={24} />} 
+                                    color="bg-teal-500" 
+                                    label="Poll" 
+                                    onClick={() => handleAttachmentSelect('poll')}
+                                />
+                                <AttachmentIcon 
+                                    icon={<PenTool size={24} />} 
+                                    color="bg-pink-600" 
+                                    label="Draw" 
+                                    onClick={() => handleAttachmentSelect('draw')}
+                                />
+                            </div>
+                            {/* Hidden File Input for demo purposes */}
+                            <input type="file" ref={fileInputRef} className="hidden" />
+                        </div>
+                    )}
+
+                    {/* Click outside listener to close menu */}
+                    {ctrl.showAttachMenu && (
+                        <div className="fixed inset-0 z-40" onClick={() => ctrl.setShowAttachMenu(false)}></div>
+                    )}
+
                     <button onClick={() => ctrl.setShowPicker(!ctrl.showPicker)} className="p-2 text-[#54656f] dark:text-gray-400 hover:bg-black/5 rounded-full transition-colors"><Smile size={24} /></button>
-                    <button className="p-2 text-[#54656f] dark:text-gray-400 hover:bg-black/5 rounded-full transition-colors"><Paperclip size={24} /></button>
+                    <button 
+                        onClick={() => ctrl.setShowAttachMenu(!ctrl.showAttachMenu)} 
+                        className={`p-2 rounded-full transition-colors transition-transform ${ctrl.showAttachMenu ? 'bg-black/10 dark:bg-white/10 rotate-45 text-[#54656f] dark:text-gray-300' : 'text-[#54656f] dark:text-gray-400 hover:bg-black/5'}`}
+                    >
+                        <Paperclip size={24} />
+                    </button>
+                    
                     <div className="flex-1 bg-white dark:bg-wa-dark-input rounded-lg flex items-center px-4 py-2"><input type="text" className="w-full bg-transparent outline-none text-[#111b21] dark:text-gray-100 placeholder:text-[#667781] dark:placeholder:text-gray-500 text-[15px]" placeholder="Type a message" value={ctrl.inputText} onChange={(e) => ctrl.setInputText(e.target.value)} onKeyDown={ctrl.handleKeyDown} /></div>
                     {ctrl.inputText.trim() ? (
                         <button onClick={() => ctrl.handleSendMessage()} className="p-3 bg-wa-teal text-white rounded-full shadow-md hover:scale-105 transition-transform"><Send size={20} className="ml-0.5" /></button> 

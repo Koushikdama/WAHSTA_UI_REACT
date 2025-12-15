@@ -58,7 +58,8 @@ const DEFAULT_CHAT_SETTINGS: ChatSettings = {
     outgoingBubbleColor: '#D9FDD3',
     incomingBubbleColor: '#FFFFFF',
     chatListBackgroundImage: null,
-    contactInfoBackgroundImage: null
+    contactInfoBackgroundImage: null,
+    translationLanguage: 'Spanish'
 };
 
 const DEFAULT_SECURITY_SETTINGS: SecuritySettings = {
