@@ -1,10 +1,11 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Check, CheckCheck, Pin, PinOff, Mic, Archive, Lock } from 'lucide-react';
 import { formatTimestamp } from '../utils/formatTime';
 import { useApp } from '../context/AppContext';
+import { useWorkerChatSearch } from '../hooks/useWorkerSearch';
 
 type FilterType = 'all' | 'unread' | 'groups';
 
@@ -16,6 +17,14 @@ const ChatList = () => {
   const [isLockModalOpen, setIsLockModalOpen] = useState(false);
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
+
+  // Offload sorting and filtering to a Web Worker
+  const { sortedChats } = useWorkerChatSearch({
+      chats,
+      users,
+      searchQuery,
+      activeFilter
+  });
 
   const archivedCount = chats.filter(c => c.isArchived).length;
 
@@ -35,51 +44,6 @@ const ChatList = () => {
         setPin('');
     }
   };
-
-  const sortedChats = useMemo(() => {
-    const filtered = chats.filter(chat => {
-        if (chat.isArchived) return false;
-
-        let matchesSearch = true;
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase().trim();
-            
-            if (chat.isGroup) {
-                const groupNameMatch = (chat.groupName || '').toLowerCase().includes(query);
-                // Search within group participant names
-                const participantsMatch = (chat.groupParticipants || []).some(pId => {
-                    const participant = users[pId];
-                    return participant && (
-                        participant.name.toLowerCase().includes(query) || 
-                        participant.phone.includes(query)
-                    );
-                });
-                matchesSearch = groupNameMatch || participantsMatch;
-            } else {
-                const user = users[chat.contactId];
-                matchesSearch = user && (
-                    user.name.toLowerCase().includes(query) || 
-                    user.phone.replace(/\s/g, '').includes(query.replace(/\s/g, '')) || // Match phone ignoring spaces
-                    user.phone.includes(query)
-                );
-            }
-        }
-        
-        let matchesTab = true;
-        if (activeFilter === 'unread') {
-            matchesTab = chat.unreadCount > 0;
-        } else if (activeFilter === 'groups') {
-            matchesTab = chat.isGroup;
-        }
-
-        return matchesSearch && matchesTab;
-    });
-
-    return filtered.sort((a, b) => {
-        if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
-        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-    });
-  }, [chats, searchQuery, activeFilter, users]);
 
   const FilterPill = ({ label, value }: { label: string, value: FilterType }) => (
       <button 
@@ -102,9 +66,6 @@ const ChatList = () => {
       backgroundPosition: 'center',
       backgroundAttachment: 'fixed'
   } : {};
-
-  // If we have a background image, we might want a semi-transparent overlay for readability
-  // We'll apply specific background classes to the items instead of the container being fully opaque white
 
   return (
     <div 
@@ -149,7 +110,7 @@ const ChatList = () => {
         document.body
       )}
 
-      {/* When bg image is set, add a subtle gradient overlay for better text contrast if needed, or rely on item backgrounds */}
+      {/* When bg image is set, add a subtle gradient overlay for better text contrast */}
       {chatSettings.chatListBackgroundImage && (
           <div className="fixed inset-0 bg-white/50 dark:bg-black/50 pointer-events-none z-0 backdrop-blur-[2px]"></div>
       )}
@@ -204,7 +165,7 @@ const ChatList = () => {
                     onClick={() => navigate(`/chat/${chat.id}`)}
                 >
                     <div className="relative shrink-0">
-                    <img src={user?.avatar || 'https://picsum.photos/300'} alt={user?.name} className="w-12 h-12 rounded-full object-cover" />
+                    <img src={chat.isGroup ? 'https://picsum.photos/300' : user?.avatar} alt={user?.name} className="w-12 h-12 rounded-full object-cover" />
                     </div>
 
                     <div className="flex-1 flex flex-col justify-center border-b border-wa-border dark:border-wa-dark-border pb-3 -mb-3 min-w-0">
