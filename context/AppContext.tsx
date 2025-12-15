@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, Chat, Message, MessageType, ChatSettings, SecuritySettings, Call, StatusUpdate, GameConfig, Channel, ChatDocument, AppConfig } from '../types';
+import { User, Chat, Message, MessageType, ChatSettings, SecuritySettings, Call, StatusUpdate, GameConfig, Channel, ChatDocument, AppConfig, StatusPrivacyType, GroupRole, GroupSettings } from '../types';
 import { useChatData } from '../hooks/useChatData';
 
 interface AppContextType {
@@ -14,6 +14,8 @@ interface AppContextType {
   updateChatSettings: (settings: Partial<ChatSettings>) => void;
   securitySettings: SecuritySettings;
   updateSecuritySettings: (settings: Partial<SecuritySettings>) => void;
+  statusPrivacy: StatusPrivacyType;
+  setStatusPrivacy: (privacy: StatusPrivacyType) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   currentUser: User;
@@ -30,6 +32,8 @@ interface AppContextType {
   appConfig?: AppConfig;
   startChat: (contactId: string) => string;
   createGroup: (groupName: string, participantIds: string[]) => string;
+  updateGroupSettings: (chatId: string, settings: Partial<GroupSettings>) => void;
+  updateGroupRole: (chatId: string, userId: string, role: GroupRole) => void;
   addMessage: (chatId: string, text: string, type: MessageType, replyToId?: string, mediaUrl?: string, duration?: string) => void;
   deleteMessages: (chatId: string, messageIds: string[], deleteForEveryone: boolean) => void;
   toggleArchiveChat: (chatId: string) => void;
@@ -85,6 +89,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return saved ? JSON.parse(saved) : DEFAULT_SECURITY_SETTINGS;
   });
 
+  const [statusPrivacy, setStatusPrivacy] = useState<StatusPrivacyType>(() => {
+      return (localStorage.getItem('statusPrivacy') as StatusPrivacyType) || 'contacts';
+  });
+
   const [searchQuery, setSearchQuery] = useState('');
   
   // State for data that might be modified
@@ -108,7 +116,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setUsers(data.users);
 
         // Chats (LocalStorage or Data)
-        setChats(data.chats);
+        // Enrich existing groups with roles if missing
+        const enrichedChats = data.chats.map(c => {
+            if (c.isGroup && !c.groupRoles) {
+                const roles: Record<string, GroupRole> = {};
+                c.groupParticipants?.forEach((pid) => {
+                    // Mock logic: 'me' is owner for c5 (created by me), 'u5' is admin everywhere else
+                    if (c.id === 'c5' && pid === 'me') roles[pid] = 'owner';
+                    else if (pid === 'u5') roles[pid] = 'admin';
+                    else roles[pid] = 'member';
+                });
+                
+                // Fallback: Make first participant owner if none exists
+                if (!Object.values(roles).includes('owner') && c.groupParticipants && c.groupParticipants.length > 0) {
+                    roles[c.groupParticipants[0]] = 'owner';
+                }
+
+                return { 
+                    ...c, 
+                    groupRoles: roles,
+                    groupSettings: { editInfo: 'all', sendMessages: 'all' } as GroupSettings
+                };
+            }
+            return c;
+        });
+
+        setChats(enrichedChats);
         setMessages(data.messages);
         setCalls(data.calls);
         setStatusUpdates(data.statusUpdates);
@@ -142,6 +175,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
       localStorage.setItem('securitySettings', JSON.stringify(securitySettings));
   }, [securitySettings]);
+
+  // Sync Status Privacy
+  useEffect(() => {
+      localStorage.setItem('statusPrivacy', statusPrivacy);
+  }, [statusPrivacy]);
 
   useEffect(() => {
     localStorage.setItem('language', language);
@@ -188,6 +226,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const createGroup = (groupName: string, participantIds: string[]): string => {
       const newChatId = `c_g_${Date.now()}`;
+      const groupRoles: Record<string, GroupRole> = {};
+      
+      // Creator is owner
+      groupRoles[currentUser.id] = 'owner';
+      participantIds.forEach(id => groupRoles[id] = 'member');
+
       const newChat: Chat = {
           id: newChatId,
           contactId: '', // No single contact ID for group
@@ -197,6 +241,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           isGroup: true,
           groupName: groupName,
           groupParticipants: [...participantIds, currentUser.id],
+          groupRoles: groupRoles,
+          groupSettings: { editInfo: 'all', sendMessages: 'all' },
           timestamp: new Date().toISOString()
       };
 
@@ -219,6 +265,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }));
 
       return newChatId;
+  };
+
+  const updateGroupSettings = (chatId: string, settings: Partial<GroupSettings>) => {
+      setChats(prev => prev.map(c => {
+          if (c.id === chatId && c.isGroup) {
+              return { ...c, groupSettings: { ...c.groupSettings!, ...settings } };
+          }
+          return c;
+      }));
+  };
+
+  const updateGroupRole = (chatId: string, userId: string, role: GroupRole) => {
+      setChats(prev => prev.map(c => {
+          if (c.id === chatId && c.isGroup) {
+              return { 
+                  ...c, 
+                  groupRoles: { ...c.groupRoles, [userId]: role } 
+              };
+          }
+          return c;
+      }));
   };
 
   const addMessage = (chatId: string, text: string, type: MessageType, replyToId?: string, mediaUrl?: string, duration?: string) => {
@@ -399,6 +466,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateChatSettings,
         securitySettings,
         updateSecuritySettings,
+        statusPrivacy,
+        setStatusPrivacy,
         searchQuery, 
         setSearchQuery, 
         currentUser,
@@ -415,6 +484,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         appConfig: data?.appConfig,
         startChat,
         createGroup,
+        updateGroupSettings,
+        updateGroupRole,
         addMessage,
         deleteMessages,
         toggleArchiveChat,

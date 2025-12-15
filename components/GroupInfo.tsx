@@ -1,10 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User as UserIcon, Bell, Lock, Search, MoreVertical, Star, ThumbsUp, Trash2, LogOut, Pin, Palette, Check, Grid, Image as ImageIcon, Video as VideoIcon, FileText, BarChart2, ChevronRight, Download, Shield, EyeOff, ChevronDown, Unlock } from 'lucide-react';
+import { ArrowLeft, User as UserIcon, Bell, Lock, Search, MoreVertical, Star, ThumbsUp, Trash2, LogOut, Pin, Palette, Check, Grid, Image as ImageIcon, Video as VideoIcon, FileText, BarChart2, ChevronRight, Download, Shield, EyeOff, ChevronDown, Unlock, CircleDashed, Plus, Settings } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatTimestamp } from '../utils/formatTime';
+import StatusViewer from './StatusViewer';
+import { StatusUpdate, GroupRole } from '../types';
 
 const THEME_COLORS = [
     { name: 'Default', value: '' }, 
@@ -20,7 +22,7 @@ type MediaFilterType = 'all' | 'images' | 'videos' | 'doc' | 'analysis';
 const GroupInfo = () => {
   const { chatId } = useParams();
   const navigate = useNavigate();
-  const { chats, messages, currentUser, currentUserId, users, updateChatTheme, toggleChatLock, securitySettings, chatDocuments, chatSettings } = useApp();
+  const { chats, messages, currentUser, currentUserId, users, updateChatTheme, toggleChatLock, securitySettings, chatDocuments, chatSettings, updateGroupRole, updateGroupSettings } = useApp();
   
   // Tab State
   const [topTab, setTopTab] = useState<'public' | 'private'>('public');
@@ -40,13 +42,47 @@ const GroupInfo = () => {
   const [isMediaPrivacyOpen, setIsMediaPrivacyOpen] = useState(false);
   const [mediaVisibility, setMediaVisibility] = useState('Default (Yes)');
 
+  // Group Status State
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const [groupStatuses, setGroupStatuses] = useState<StatusUpdate[]>([]);
+  const [viewerState, setViewerState] = useState<{ isOpen: boolean, startIndex: number }>({ isOpen: false, startIndex: 0 });
+  const statusFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Group Settings & Roles State
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showPermissions, setShowPermissions] = useState(false);
+  const [expandedAdmins, setExpandedAdmins] = useState(false);
+
   const chat = chats.find(c => c.id === chatId);
+  
+  // Initialize mock statuses for group participants
+  useEffect(() => {
+      if (chat?.isGroup && chat.groupParticipants) {
+           const mocks: StatusUpdate[] = chat.groupParticipants
+              .filter(pid => pid !== currentUserId && Math.random() > 0.6) // Randomly assign statuses to some members
+              .map((pid, idx) => ({
+                  id: `gs_${pid}_${idx}`,
+                  userId: pid,
+                  timestamp: new Date(Date.now() - Math.random() * 86400000).toISOString(),
+                  imageUrl: `https://picsum.photos/seed/gs_${pid}/400/800`,
+                  caption: `Status update in ${chat.groupName}`,
+                  viewed: false
+              }));
+           setGroupStatuses(mocks);
+      }
+  }, [chat?.id, chat?.isGroup, chat?.groupName, chat?.groupParticipants, currentUserId]);
+
   if (!chat) return null;
 
   const isGroup = chat.isGroup;
   const contact = !isGroup ? users[chat.contactId] : null;
   const chatMessages = messages[chat.id] || [];
   const pinnedMessages = chatMessages.filter(m => m.isPinned);
+
+  // Role Logic
+  const myRole: GroupRole = isGroup ? (chat.groupRoles?.[currentUserId] || 'member') : 'member';
+  const isOwner = myRole === 'owner';
+  const isAdmin = myRole === 'admin' || isOwner;
 
   // --- Filtering Logic for Locked Dates ---
   const isDateLocked = (timestamp: string) => {
@@ -136,6 +172,34 @@ const GroupInfo = () => {
       } else {
           setAuthError('Incorrect PIN');
           setAuthPin('');
+      }
+  };
+
+  const handleStatusUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          const file = e.target.files[0];
+          const url = URL.createObjectURL(file);
+          const newStatus: StatusUpdate = {
+              id: `gs_me_${Date.now()}`,
+              userId: currentUserId,
+              timestamp: new Date().toISOString(),
+              imageUrl: url,
+              caption: 'New group status',
+              viewed: false
+          };
+          setGroupStatuses(prev => [newStatus, ...prev]);
+      }
+      // Reset input
+      if (statusFileInputRef.current) statusFileInputRef.current.value = '';
+  };
+
+  const handleToggleAdmin = (participantId: string) => {
+      if (!isOwner || participantId === currentUserId) return;
+      const currentRole = chat.groupRoles?.[participantId];
+      if (currentRole === 'admin') {
+          updateGroupRole(chat.id, participantId, 'member');
+      } else {
+          updateGroupRole(chat.id, participantId, 'admin');
       }
   };
 
@@ -422,12 +486,104 @@ const GroupInfo = () => {
       backgroundAttachment: 'fixed'
   } : {};
 
+  // --- PERMISSIONS SCREEN ---
+  if (showPermissions) {
+      return (
+          <div className="flex flex-col h-full bg-[#f0f2f5] dark:bg-[#111b21] animate-in slide-in-from-right duration-200">
+              <div className="h-[60px] bg-wa-teal dark:bg-wa-dark-header flex items-center px-4 shrink-0 shadow-sm text-white">
+                  <button onClick={() => setShowPermissions(false)} className="mr-3 p-1 rounded-full active:bg-white/10">
+                      <ArrowLeft size={24} />
+                  </button>
+                  <h2 className="text-xl font-medium">Group permissions</h2>
+              </div>
+              <div className="p-4 flex-col gap-4">
+                  <div className="bg-white dark:bg-wa-dark-header rounded-lg shadow-sm p-4">
+                      <div className="flex justify-between items-center mb-1">
+                          <h3 className="text-base text-[#111b21] dark:text-gray-100">Edit group info</h3>
+                          <div className={`text-xs px-2 py-1 rounded bg-gray-100 dark:bg-white/10 ${isAdmin ? 'text-green-600' : 'text-gray-500'}`}>
+                              {chat.groupSettings?.editInfo === 'all' ? 'All participants' : 'Only admins'}
+                          </div>
+                      </div>
+                      <p className="text-xs text-[#667781] dark:text-gray-500 mb-4">Choose who can change the group's subject, icon, and description.</p>
+                      
+                      {isAdmin && (
+                          <div className="flex gap-2">
+                              <button onClick={() => updateGroupSettings(chat.id, { editInfo: 'all' })} className={`flex-1 py-2 text-sm rounded border ${chat.groupSettings?.editInfo === 'all' ? 'border-wa-teal text-wa-teal bg-green-50 dark:bg-green-900/10' : 'border-gray-300 text-gray-500'}`}>All</button>
+                              <button onClick={() => updateGroupSettings(chat.id, { editInfo: 'admins' })} className={`flex-1 py-2 text-sm rounded border ${chat.groupSettings?.editInfo === 'admins' ? 'border-wa-teal text-wa-teal bg-green-50 dark:bg-green-900/10' : 'border-gray-300 text-gray-500'}`}>Admins</button>
+                          </div>
+                      )}
+                  </div>
+
+                  <div className="bg-white dark:bg-wa-dark-header rounded-lg shadow-sm p-4 mt-4">
+                      <div className="flex justify-between items-center mb-1">
+                          <h3 className="text-base text-[#111b21] dark:text-gray-100">Send messages</h3>
+                          <div className={`text-xs px-2 py-1 rounded bg-gray-100 dark:bg-white/10 ${isAdmin ? 'text-green-600' : 'text-gray-500'}`}>
+                              {chat.groupSettings?.sendMessages === 'all' ? 'All participants' : 'Only admins'}
+                          </div>
+                      </div>
+                      <p className="text-xs text-[#667781] dark:text-gray-500 mb-4">Choose who can send messages to this group.</p>
+                      
+                      {isAdmin && (
+                          <div className="flex gap-2">
+                              <button onClick={() => updateGroupSettings(chat.id, { sendMessages: 'all' })} className={`flex-1 py-2 text-sm rounded border ${chat.groupSettings?.sendMessages === 'all' ? 'border-wa-teal text-wa-teal bg-green-50 dark:bg-green-900/10' : 'border-gray-300 text-gray-500'}`}>All</button>
+                              <button onClick={() => updateGroupSettings(chat.id, { sendMessages: 'admins' })} className={`flex-1 py-2 text-sm rounded border ${chat.groupSettings?.sendMessages === 'admins' ? 'border-wa-teal text-wa-teal bg-green-50 dark:bg-green-900/10' : 'border-gray-300 text-gray-500'}`}>Admins</button>
+                          </div>
+                      )}
+                  </div>
+
+                  {isOwner && (
+                      <div className="bg-white dark:bg-wa-dark-header rounded-lg shadow-sm mt-4 overflow-hidden">
+                          <div 
+                            className="p-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5"
+                            onClick={() => setExpandedAdmins(!expandedAdmins)}
+                          >
+                              <h3 className="text-base text-[#111b21] dark:text-gray-100">Edit group admins</h3>
+                              <ChevronDown size={20} className={`transition-transform ${expandedAdmins ? 'rotate-180' : ''}`} />
+                          </div>
+                          
+                          {expandedAdmins && (
+                              <div className="border-t border-gray-100 dark:border-gray-700 max-h-60 overflow-y-auto">
+                                  {chat.groupParticipants?.filter(pid => pid !== currentUserId).map(pid => {
+                                      const u = users[pid];
+                                      const role = chat.groupRoles?.[pid];
+                                      return (
+                                          <div key={pid} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-white/5">
+                                              <div className="flex items-center gap-3">
+                                                  <img src={u.avatar} className="w-8 h-8 rounded-full" alt="" />
+                                                  <span className="text-sm font-medium dark:text-gray-200">{u.name}</span>
+                                              </div>
+                                              <button 
+                                                onClick={() => handleToggleAdmin(pid)}
+                                                className={`text-xs px-3 py-1.5 rounded-full border ${role === 'admin' ? 'border-red-200 text-red-500 hover:bg-red-50' : 'border-green-200 text-green-600 hover:bg-green-50'}`}
+                                              >
+                                                  {role === 'admin' ? 'Dismiss' : 'Make Admin'}
+                                              </button>
+                                          </div>
+                                      )
+                                  })}
+                              </div>
+                          )}
+                      </div>
+                  )}
+              </div>
+          </div>
+      );
+  }
+
   return (
     <div 
         className={`flex flex-col h-full overflow-y-auto relative ${!chatSettings.contactInfoBackgroundImage ? 'bg-[#f0f2f5] dark:bg-[#0b141a]' : ''}`}
         style={containerStyle}
     >
-      
+      {/* Viewer Portal */}
+      {viewerState.isOpen && (
+          <StatusViewer 
+            updates={groupStatuses}
+            initialIndex={viewerState.startIndex}
+            onClose={() => setViewerState({ isOpen: false, startIndex: 0 })}
+          />
+      )}
+
       {/* AUTH MODAL */}
       {showAuthModal && createPortal(
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -477,13 +633,32 @@ const GroupInfo = () => {
       )}
 
       {/* Header */}
-      <div className="h-[60px] bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-md flex items-center px-4 shrink-0 shadow-sm sticky top-0 z-10 transition-colors">
-        <button onClick={() => navigate(`/chat/${chatId}`)} className="mr-3 text-wa-gray dark:text-gray-400">
-          <ArrowLeft size={24} />
-        </button>
-        <h2 className="text-lg text-[#111b21] dark:text-gray-100 font-medium">
-           {isGroup ? 'Group Info' : 'Contact Info'}
-        </h2>
+      <div className="h-[60px] bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-md flex items-center justify-between px-4 shrink-0 shadow-sm sticky top-0 z-10 transition-colors">
+        <div className="flex items-center gap-3">
+            <button onClick={() => navigate(`/chat/${chatId}`)} className="text-wa-gray dark:text-gray-400">
+                <ArrowLeft size={24} />
+            </button>
+            <h2 className="text-lg text-[#111b21] dark:text-gray-100 font-medium">
+                {isGroup ? 'Group Info' : 'Contact Info'}
+            </h2>
+        </div>
+        
+        {/* Settings Menu for Groups */}
+        {isGroup && (
+            <div className="relative">
+                <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 -mr-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-wa-gray dark:text-gray-400 transition-colors">
+                    <MoreVertical size={22} />
+                </button>
+                {isMenuOpen && (
+                    <>
+                        <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)}></div>
+                        <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-wa-dark-paper rounded-lg shadow-xl border border-wa-border dark:border-gray-700 z-50 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                            <button onClick={() => { setIsMenuOpen(false); setShowPermissions(true); }} className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-wa-dark-hover text-[#111b21] dark:text-gray-100 text-[15px]">Group permissions</button>
+                        </div>
+                    </>
+                )}
+            </div>
+        )}
       </div>
 
       <div className="flex-1 pb-10 relative z-10">
@@ -529,6 +704,64 @@ const GroupInfo = () => {
                 </div>
                 
                 {renderMediaSection(false)}
+
+                {/* GROUP STATUS SECTION - ONLY VISIBLE FOR GROUPS */}
+                {isGroup && (
+                    <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm mb-3 shadow-sm transition-colors overflow-hidden rounded-lg">
+                        <div 
+                            className="px-4 py-3 flex items-center justify-between border-b border-gray-100 dark:border-gray-800 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50"
+                            onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                        >
+                            <div className="flex flex-col">
+                                <h3 className="text-sm text-[#667781] dark:text-gray-400 font-medium flex items-center gap-2">
+                                    Group Status
+                                    <ChevronDown size={14} className={`transition-transform duration-200 ${isStatusDropdownOpen ? 'rotate-180' : ''}`} />
+                                </h3>
+                                <p className="text-[10px] text-gray-400">
+                                    {groupStatuses.length} updates
+                                </p>
+                            </div>
+                            <CircleDashed size={20} className="text-[#667781] dark:text-gray-400" />
+                        </div>
+
+                        {isStatusDropdownOpen && (
+                            <div className="p-4 overflow-x-auto no-scrollbar flex gap-4 animate-in slide-in-from-top-2 duration-200">
+                                {/* Add Status Button */}
+                                <div className="flex flex-col items-center gap-1 cursor-pointer shrink-0" onClick={() => statusFileInputRef.current?.click()}>
+                                    <div className="relative w-14 h-14">
+                                        <img src={currentUser.avatar} className="w-full h-full rounded-full object-cover opacity-80" alt="Me" />
+                                        <div className="absolute bottom-0 right-0 bg-wa-teal text-white rounded-full p-1 border-2 border-white dark:border-wa-dark-bg">
+                                            <Plus size={12} strokeWidth={3} />
+                                        </div>
+                                    </div>
+                                    <span className="text-xs text-[#111b21] dark:text-gray-100 font-medium mt-1">Add</span>
+                                </div>
+                                
+                                <input type="file" ref={statusFileInputRef} className="hidden" accept="image/*,video/*" onChange={handleStatusUpload} />
+
+                                {/* List Statuses */}
+                                {groupStatuses.map((status, idx) => {
+                                    const u = users[status.userId] || (status.userId === currentUserId ? currentUser : null);
+                                    if (!u) return null;
+                                    return (
+                                        <div key={status.id} className="flex flex-col items-center gap-1 cursor-pointer shrink-0" onClick={() => setViewerState({ isOpen: true, startIndex: idx })}>
+                                            <div className="w-14 h-14 rounded-full p-[2px] border-2 border-wa-teal">
+                                                <img src={u.avatar} className="w-full h-full rounded-full object-cover" alt={u.name} />
+                                            </div>
+                                            <span className="text-xs text-[#111b21] dark:text-gray-100 font-medium mt-1 w-16 truncate text-center">{u.name.split(' ')[0]}</span>
+                                        </div>
+                                    )
+                                })}
+                                
+                                {groupStatuses.length === 0 && (
+                                    <div className="flex items-center justify-center text-xs text-gray-400 italic px-4">
+                                        No recent updates
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm mb-3 shadow-sm transition-colors px-6 py-6 rounded-lg">
                     {/* Theme Selectors */}
@@ -628,18 +861,36 @@ const GroupInfo = () => {
                             {chat.groupParticipants?.length} participants
                         </div>
                         {chat.groupParticipants?.map(pid => {
-                            const user = users[pid];
+                            const user = users[pid] || (pid === currentUserId ? currentUser : null);
                             if (!user) return null;
+                            const role = chat.groupRoles?.[pid];
+                            
                             return (
-                                <div key={pid} className="flex items-center gap-4 px-6 py-3 hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 cursor-pointer">
+                                <div key={pid} className="flex items-center gap-4 px-6 py-3 hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 cursor-pointer relative group">
                                     <img src={user.avatar} alt="" className="w-10 h-10 rounded-full" />
                                     <div className="flex-1">
-                                        <h3 className="text-base text-[#111b21] dark:text-gray-100 flex justify-between">
-                                            {user.name}
-                                            {pid === 'u5' && <span className="bg-[#dcf8c6] dark:bg-[#005c4b] text-xs px-2 rounded-md flex items-center">Group Admin</span>}
-                                        </h3>
+                                        <div className="flex justify-between items-center">
+                                            <h3 className="text-base text-[#111b21] dark:text-gray-100">
+                                                {user.name} {pid === currentUserId && '(You)'}
+                                            </h3>
+                                            {role && role !== 'member' && (
+                                                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${role === 'owner' ? 'border-blue-200 text-blue-600 bg-blue-50' : 'border-green-200 text-green-600 bg-green-50'}`}>
+                                                    {role === 'owner' ? 'Group Creator' : 'Group Admin'}
+                                                </span>
+                                            )}
+                                        </div>
                                         <p className="text-xs text-[#667781] dark:text-gray-500">{user.about}</p>
                                     </div>
+                                    
+                                    {/* Inline Admin Action (Owner only) */}
+                                    {isOwner && pid !== currentUserId && (
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); handleToggleAdmin(pid); }}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 hidden group-hover:flex px-3 py-1 bg-white dark:bg-wa-dark-paper shadow-sm rounded-full text-xs font-medium border border-gray-200 dark:border-gray-700"
+                                        >
+                                            {role === 'admin' ? 'Dismiss Admin' : 'Make Admin'}
+                                        </button>
+                                    )}
                                 </div>
                             )
                         })}

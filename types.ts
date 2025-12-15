@@ -29,6 +29,13 @@ export interface Message {
   isDeleted?: boolean;
 }
 
+export type GroupRole = 'owner' | 'admin' | 'member';
+
+export interface GroupSettings {
+    editInfo: 'all' | 'admins';
+    sendMessages: 'all' | 'admins';
+}
+
 export interface Chat {
   id: string;
   contactId: string; // References User
@@ -38,6 +45,8 @@ export interface Chat {
   isGroup: boolean;
   groupName?: string;
   groupParticipants?: string[];
+  groupRoles?: Record<string, GroupRole>; // userId -> role
+  groupSettings?: GroupSettings;
   lastMessageId?: string;
   timestamp: string; // ISO string for sorting
   isArchived?: boolean;
@@ -106,6 +115,8 @@ export interface SecuritySettings {
   chatLockPassword?: string;
   isAppLockEnabled: boolean;
 }
+
+export type StatusPrivacyType = 'contacts' | 'except' | 'only' | 'all' | 'followers' | 'followings' | 'archive';
 
 export interface AppConfig {
     languages: string[];

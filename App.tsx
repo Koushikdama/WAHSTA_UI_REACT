@@ -6,6 +6,7 @@ import { MessageCircle, Phone, CircleDashed, Settings, Search, Plus, ArrowLeft, 
 import ChatList from './components/ChatList';
 import ChatWindow from './components/ChatWindow';
 import StatusTab from './components/StatusTab';
+import StatusPrivacySettings from './components/StatusPrivacySettings';
 import CallsTab from './components/CallsTab';
 import SettingsTab from './components/SettingsTab';
 import NewChat from './components/NewChat';
@@ -62,7 +63,8 @@ const DesktopLayout = () => {
     location.pathname.startsWith('/settings') || 
     location.pathname.startsWith('/calls') || 
     location.pathname.startsWith('/new-chat') || 
-    location.pathname.startsWith('/archived');
+    location.pathname.startsWith('/archived') ||
+    location.pathname.startsWith('/status/privacy');
   
   const showSidebarHeader = !isSubPage;
 
@@ -105,13 +107,13 @@ const DesktopLayout = () => {
           )}
 
           {/* Search - Only shown when Sidebar Header is shown */}
-          {showSidebarHeader && location.pathname !== '/status' && (
+          {showSidebarHeader && (
             <div className="bg-white dark:bg-wa-dark-bg p-2 border-b border-wa-border dark:border-wa-dark-border">
                 <div className="bg-wa-grayBg dark:bg-wa-dark-input rounded-lg px-4 py-2 flex items-center gap-4 text-wa-gray dark:text-gray-400 h-9 transition-colors">
                 <Search size={18} />
                 <input 
                     type="text" 
-                    placeholder="Search or start new chat" 
+                    placeholder={activeTab === 'status' ? "Search status" : "Search or start new chat"} 
                     className="bg-transparent outline-none text-sm w-full text-black dark:text-white placeholder:text-wa-gray dark:placeholder:text-gray-500"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -126,6 +128,7 @@ const DesktopLayout = () => {
                 <Route path="/" element={<ChatList />} />
                 <Route path="/chats" element={<ChatList />} />
                 <Route path="/status" element={<StatusTab />} />
+                <Route path="/status/privacy" element={<StatusPrivacySettings />} />
                 <Route path="/calls" element={<CallsTab />} />
                 <Route path="/settings" element={<SettingsTab />} />
                 <Route path="/new-chat" element={<NewChat />} />
@@ -184,7 +187,7 @@ const MobileLayout = () => {
     
     // Check if we are in a sub-view that should take full screen and hide nav
     const isChatOpen = location.pathname.includes('/chat/') && !location.pathname.includes('/new-chat');
-    const isSubPage = location.pathname === '/new-chat' || location.pathname === '/archived';
+    const isSubPage = location.pathname === '/new-chat' || location.pathname === '/archived' || location.pathname === '/status/privacy';
 
     useEffect(() => {
         // Reset search when changing tabs, but keep it if toggling search UI
@@ -214,6 +217,7 @@ const MobileLayout = () => {
                  <Routes>
                     <Route path="/new-chat" element={<NewChat />} />
                     <Route path="/archived" element={<ArchivedChats />} />
+                    <Route path="/status/privacy" element={<StatusPrivacySettings />} />
                  </Routes>
                  <CallOverlay />
             </div>
