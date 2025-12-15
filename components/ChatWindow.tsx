@@ -248,7 +248,7 @@ const ChatWindow = () => {
                                                 </div>
                                             )}
                                             <div 
-                                                className={`group relative max-w-[85%] md:max-w-[65%] rounded-lg shadow-sm ${bubblePadding} ${isMe ? 'rounded-tr-none' : 'rounded-tl-none'} ${isActive ? 'z-[1]' : 'z-0'}`}
+                                                className={`group relative max-w-[85%] md:max-w-[65%] rounded-lg shadow-sm ${bubblePadding} ${isMe ? 'rounded-tr-none' : 'rounded-tl-none'} ${isActive ? 'z-[50]' : 'z-0'}`}
                                                 style={{ backgroundColor: getBubbleColor(isMe), color: '#111b21' }}
                                                 onMouseEnter={() => !ctrl.isSelectionMode && ctrl.setActiveMessageId(msg.id)}
                                                 onMouseLeave={() => !ctrl.isSelectionMode && ctrl.setActiveMessageId(null)}
