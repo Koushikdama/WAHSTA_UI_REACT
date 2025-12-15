@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { HashRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { MessageCircle, Phone, CircleDashed, Settings, Search, Plus, ArrowLeft, Camera, Edit2, MoreVertical, Lock } from 'lucide-react';
 
 import ChatList from './components/ChatList';
@@ -12,12 +12,16 @@ import SettingsTab from './components/SettingsTab';
 import NewChat from './components/NewChat';
 import GroupInfo from './components/GroupInfo';
 import ArchivedChats from './components/ArchivedChats';
+import Login from './components/auth/Login';
+import Signup from './components/auth/Signup';
+import VerifyOtp from './components/auth/VerifyOtp';
+
 import { AppProvider, useApp } from './context/AppContext';
-import { GameProvider, useGame } from './context/GameContext'; // Import Game Context
-import GameInviteModal from './components/games/GameInviteModal'; // Import Game Components
+import { GameProvider, useGame } from './context/GameContext'; 
+import GameInviteModal from './components/games/GameInviteModal'; 
 import FloatingGameView from './components/games/FloatingGameView';
-import { CallProvider } from './context/CallContext'; // Import Call Context
-import CallOverlay from './components/CallOverlay'; // Import Call Overlay
+import { CallProvider } from './context/CallContext'; 
+import CallOverlay from './components/CallOverlay'; 
 
 // --- Global Game Wrapper Component ---
 const GlobalGameUI = () => {
@@ -42,6 +46,18 @@ const GlobalGameUI = () => {
             <FloatingGameView />
         </>
     );
+};
+
+// Protected Route Wrapper
+const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
+    const { isAuthenticated } = useApp();
+    const location = useLocation();
+
+    if (!isAuthenticated) {
+        return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+
+    return children;
 };
 
 const DesktopLayout = () => {
@@ -334,7 +350,19 @@ const App = () => {
       <GameProvider>
         <CallProvider>
             <HashRouter>
-                {isMobile ? <MobileLayout /> : <DesktopLayout />}
+                <Routes>
+                    {/* Public Auth Routes */}
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/signup" element={<Signup />} />
+                    <Route path="/verify-otp" element={<VerifyOtp />} />
+
+                    {/* Protected Main Routes */}
+                    <Route path="/*" element={
+                        <ProtectedRoute>
+                            {isMobile ? <MobileLayout /> : <DesktopLayout />}
+                        </ProtectedRoute>
+                    } />
+                </Routes>
             </HashRouter>
         </CallProvider>
       </GameProvider>

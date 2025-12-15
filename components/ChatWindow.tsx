@@ -116,7 +116,7 @@ const VideoMessage = ({ src, poster, duration }: { src: string, poster?: string,
     const [isPlaying, setIsPlaying] = useState(false);
 
     const togglePlay = (e: React.MouseEvent) => {
-        e.stopPropagation();
+        e?.stopPropagation();
         if (videoRef.current) {
             if (isPlaying) {
                 videoRef.current.pause();
@@ -452,7 +452,7 @@ const ChatWindow = () => {
                                     const bubblePadding = isMediaMessage ? 'p-[3px]' : 'p-1.5';
 
                                     return (
-                                        <div key={msg.id} className={`relative flex mb-2 ${isMe ? 'justify-end' : 'justify-start'} ${isSelectionMode ? 'cursor-pointer hover:bg-blue-100/10 -mx-4 px-4 py-1' : ''} ${isSelected ? 'bg-blue-100/30 dark:bg-blue-900/20' : ''}`} onClick={() => isSelectionMode && toggleSelection(msg.id)} onContextMenu={(e) => handleContextMenu(e, msg.id)}>
+                                        <div key={msg.id} className={`relative flex mb-3.5 md:mb-4 ${isMe ? 'justify-end' : 'justify-start'} ${isSelectionMode ? 'cursor-pointer hover:bg-blue-100/10 -mx-4 px-4 py-1' : ''} ${isSelected ? 'bg-blue-100/30 dark:bg-blue-900/20' : ''}`} onClick={() => isSelectionMode && toggleSelection(msg.id)} onContextMenu={(e) => handleContextMenu(e, msg.id)}>
                                             {isSelectionMode && (
                                                 <div className={`flex items-center mr-3 ${isMe ? 'order-last ml-3 mr-0' : ''}`}>
                                                     <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-wa-teal border-wa-teal' : 'border-gray-400 bg-white dark:bg-transparent'}`}>{isSelected && <Check size={14} className="text-white" strokeWidth={3} />}</div>

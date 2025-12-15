@@ -4,6 +4,9 @@ import { User, Chat, Message, MessageType, ChatSettings, SecuritySettings, Call,
 import { useChatData } from '../hooks/useChatData';
 
 interface AppContextType {
+  isAuthenticated: boolean;
+  login: () => void;
+  logout: () => void;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   language: string;
@@ -68,6 +71,11 @@ const DEFAULT_USER: User = { id: 'me', name: 'User', avatar: '', about: '', phon
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { data, loading: dataLoading } = useChatData();
+
+  // Auth State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+      return localStorage.getItem('isAuthenticated') === 'true';
+  });
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
@@ -189,6 +197,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem('language', language);
   }, [language]);
+
+  const login = () => {
+      setIsAuthenticated(true);
+      localStorage.setItem('isAuthenticated', 'true');
+  };
+
+  const logout = () => {
+      setIsAuthenticated(false);
+      localStorage.removeItem('isAuthenticated');
+  };
 
   const updateChatSettings = (newSettings: Partial<ChatSettings>) => {
       setChatSettings(prev => ({ ...prev, ...newSettings }));
@@ -466,6 +484,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   return (
     <AppContext.Provider value={{ 
+        isAuthenticated,
+        login,
+        logout,
         theme, 
         toggleTheme,
         language,
