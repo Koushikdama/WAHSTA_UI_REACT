@@ -167,6 +167,7 @@ const ChatSettingsScreen = ({ onClose }: { onClose: () => void }) => {
     const { chatSettings, updateChatSettings, appConfig } = useApp();
     const chatListBgInputRef = useRef<HTMLInputElement>(null);
     const contactInfoBgInputRef = useRef<HTMLInputElement>(null);
+    const [error, setError] = useState<string | null>(null);
 
     const getFontSizeClass = () => {
         switch(chatSettings.fontSize) {
@@ -179,16 +180,28 @@ const ChatSettingsScreen = ({ onClose }: { onClose: () => void }) => {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'chatList' | 'contactInfo') => {
         const file = e.target.files?.[0];
         if (file) {
+            // Check file size (e.g., 800KB max for localStorage safety)
+            if (file.size > 800 * 1024) {
+                setError("Image is too large. Please select an image under 800KB.");
+                return;
+            }
+            
+            setError(null);
             const reader = new FileReader();
             reader.onloadend = () => {
-                if (type === 'chatList') {
-                    updateChatSettings({ chatListBackgroundImage: reader.result as string });
-                } else {
-                    updateChatSettings({ contactInfoBackgroundImage: reader.result as string });
+                try {
+                    if (type === 'chatList') {
+                        updateChatSettings({ chatListBackgroundImage: reader.result as string });
+                    } else {
+                        updateChatSettings({ contactInfoBackgroundImage: reader.result as string });
+                    }
+                } catch (e) {
+                    setError("Storage quota exceeded. Try a smaller image.");
                 }
             };
             reader.readAsDataURL(file);
         }
+        e.target.value = ''; // Reset input
     };
 
     const APP_COLORS = appConfig?.appColors || ['#008069'];
@@ -300,6 +313,12 @@ const ChatSettingsScreen = ({ onClose }: { onClose: () => void }) => {
                          <ImageIcon size={20} className="text-wa-gray" />
                          <h3 className="text-base font-medium text-[#111b21] dark:text-gray-100">Custom Backgrounds</h3>
                     </div>
+                    
+                    {error && (
+                        <div className="mb-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm flex items-center gap-2">
+                            <X size={16} /> {error}
+                        </div>
+                    )}
                     
                     {/* Chat List Background */}
                     <div className="mb-4">

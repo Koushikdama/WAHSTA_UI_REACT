@@ -52,6 +52,8 @@ const GroupInfo = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showPermissions, setShowPermissions] = useState(false);
   const [expandedAdmins, setExpandedAdmins] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
 
   const chat = chats.find(c => c.id === chatId);
   
@@ -201,6 +203,18 @@ const GroupInfo = () => {
       } else {
           updateGroupRole(chat.id, participantId, 'admin');
       }
+  };
+
+  const handleMenuToggle = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!isMenuOpen && menuButtonRef.current) {
+          const rect = menuButtonRef.current.getBoundingClientRect();
+          setMenuPos({
+              top: rect.bottom + 5,
+              right: window.innerWidth - rect.right
+          });
+      }
+      setIsMenuOpen(!isMenuOpen);
   };
 
   // --- Render Helpers ---
@@ -646,16 +660,24 @@ const GroupInfo = () => {
         {/* Settings Menu for Groups */}
         {isGroup && (
             <div className="relative">
-                <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 -mr-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-wa-gray dark:text-gray-400 transition-colors">
+                <button 
+                    ref={menuButtonRef}
+                    onClick={handleMenuToggle} 
+                    className="p-2 -mr-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-wa-gray dark:text-gray-400 transition-colors"
+                >
                     <MoreVertical size={22} />
                 </button>
-                {isMenuOpen && (
+                {isMenuOpen && createPortal(
                     <>
-                        <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)}></div>
-                        <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-wa-dark-paper rounded-lg shadow-xl border border-wa-border dark:border-gray-700 z-50 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                        <div className="fixed inset-0 z-[60]" onClick={() => setIsMenuOpen(false)}></div>
+                        <div 
+                            className="fixed w-48 bg-white dark:bg-wa-dark-paper rounded-lg shadow-xl border border-wa-border dark:border-gray-700 z-[61] py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right"
+                            style={{ top: menuPos.top, right: menuPos.right }}
+                        >
                             <button onClick={() => { setIsMenuOpen(false); setShowPermissions(true); }} className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-wa-dark-hover text-[#111b21] dark:text-gray-100 text-[15px]">Group permissions</button>
                         </div>
-                    </>
+                    </>,
+                    document.body
                 )}
             </div>
         )}
