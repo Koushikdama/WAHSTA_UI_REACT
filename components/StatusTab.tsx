@@ -2,7 +2,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Lock, BadgeCheck, Camera, Edit2, X, Send, Smile, Type, Crop, User, Archive, ChevronDown, ChevronUp, MoreVertical, ChevronRight } from 'lucide-react';
+import { Plus, Lock, BadgeCheck, Camera, Edit2, X, Send, Smile, Type, Crop, User, Archive, ChevronDown, ChevronUp, MoreVertical, ChevronRight, ArrowLeft } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatTimestamp } from '../utils/formatTime';
 import { StatusUpdate, StatusPrivacyType } from '../types';
@@ -183,7 +183,15 @@ const StatusTab = () => {
   return (
     <div className="flex flex-col pb-20 bg-white dark:bg-wa-dark-bg min-h-full relative">
       
-      {/* Header Row for Status */}
+      {/* Desktop Header with Back Button - Only visible on md+ screens */}
+      <div className="hidden md:flex h-[60px] bg-wa-grayBg dark:bg-wa-dark-header items-center gap-3 px-4 shrink-0 border-b border-wa-border dark:border-wa-dark-border text-[#111b21] dark:text-gray-100 transition-colors sticky top-0 z-10">
+          <button onClick={() => navigate('/chats')} className="p-2 -ml-2 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
+              <ArrowLeft size={24} />
+          </button>
+          <h2 className="text-xl font-medium md:text-lg">Status</h2>
+      </div>
+
+      {/* Mobile Header Row for Status */}
       <div className="flex items-center justify-between px-4 py-4 md:hidden">
           <h1 className="text-xl font-medium text-[#111b21] dark:text-gray-100">Status</h1>
           <div className="relative">

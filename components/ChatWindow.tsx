@@ -5,7 +5,7 @@ import {
   ArrowLeft, MoreVertical, Phone, Video, Search, Smile, Paperclip, Mic, Send, 
   Check, CheckCheck, Reply, Trash2, Copy, Star, Forward, Info, X, ChevronDown,
   Image as ImageIcon, FileText, Camera, Languages, Pin, Lock, ArrowUp, ArrowDown, CheckSquare,
-  Play, Pause, ChevronLeft, ChevronRight
+  Play, Pause, ChevronLeft, ChevronRight, StopCircle
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useGame } from '../context/GameContext';
@@ -45,8 +45,6 @@ const MediaCarousel = ({ mediaUrls }: { mediaUrls: string[] }) => {
         const diff = touchStartX.current - touchEndX.current;
         if (diff > 50) next();
         else if (diff < -50) {
-            // If at index 0 and swiping right (prev), we normally don't want to loop backwards easily on touch 
-            // unless we want infinite scroll. Let's allow infinite for smooth UX.
             prev();
         }
         
@@ -76,7 +74,6 @@ const MediaCarousel = ({ mediaUrls }: { mediaUrls: string[] }) => {
                 </div>
             ))}
             
-            {/* Navigation Arrows (Desktop Hover) */}
             {mediaUrls.length > 1 && (
                 <>
                     <button 
@@ -94,7 +91,6 @@ const MediaCarousel = ({ mediaUrls }: { mediaUrls: string[] }) => {
                 </>
             )}
 
-            {/* Pagination Dots */}
             {mediaUrls.length > 1 && (
                 <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-20 pointer-events-none">
                     {mediaUrls.map((_, idx) => (
@@ -106,7 +102,6 @@ const MediaCarousel = ({ mediaUrls }: { mediaUrls: string[] }) => {
                 </div>
             )}
             
-            {/* Counter Badge */}
             {mediaUrls.length > 1 && (
                 <div className="absolute top-2 right-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full backdrop-blur-sm z-20 font-medium">
                     {currentIndex + 1}/{mediaUrls.length}
@@ -145,7 +140,7 @@ const VideoMessage = ({ src, poster, duration }: { src: string, poster?: string,
                 onPause={() => setIsPlaying(false)}
                 onPlay={() => setIsPlaying(true)}
                 playsInline
-                controls={isPlaying} // Show native controls only when playing
+                controls={isPlaying} 
             />
             
             {!isPlaying && (
@@ -186,6 +181,11 @@ const ChatWindow = () => {
     const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());
     const [translatedMessages, setTranslatedMessages] = useState<Set<string>>(new Set());
     
+    // Recording State
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordingSeconds, setRecordingSeconds] = useState(0);
+    const recordingTimerRef = useRef<any>(null);
+
     // Search State
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [messageSearchQuery, setMessageSearchQuery] = useState('');
@@ -224,6 +224,36 @@ const ChatWindow = () => {
             e.preventDefault();
             handleSendMessage();
         }
+    };
+
+    // --- Voice Recording Handlers ---
+    const startRecording = () => {
+        setIsRecording(true);
+        setRecordingSeconds(0);
+        recordingTimerRef.current = setInterval(() => {
+            setRecordingSeconds(prev => prev + 1);
+        }, 1000);
+    };
+
+    const formatRecordingTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    const cancelRecording = () => {
+        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+        setIsRecording(false);
+        setRecordingSeconds(0);
+    };
+
+    const finishRecording = () => {
+        if (!chatId) return;
+        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+        // Add voice message with the duration
+        addMessage(chatId, "🎤 Voice Message", 'voice', undefined, undefined, formatRecordingTime(recordingSeconds));
+        setIsRecording(false);
+        setRecordingSeconds(0);
     };
 
     const handleReply = (msg: Message) => {
@@ -464,7 +494,17 @@ const ChatWindow = () => {
                                                                     <img src={msg.mediaUrl} alt="Sent media" className="w-full max-h-[400px] object-cover" />
                                                                 </div>
                                                             ) : msg.type === 'voice' ? (
-                                                                <div className="flex items-center gap-3 pr-4 min-w-[150px] py-1"><div className="w-10 h-10 rounded-full bg-wa-teal flex items-center justify-center text-white cursor-pointer"><Mic size={20} /></div><div className="flex flex-col flex-1"><div className="h-1 bg-gray-300 dark:bg-gray-600 rounded-full w-full mb-1"></div><span className="text-xs text-gray-500">{msg.duration}</span></div></div>
+                                                                <div className="flex items-center gap-3 pr-4 min-w-[150px] py-1">
+                                                                    <div className="w-10 h-10 rounded-full bg-wa-teal flex items-center justify-center text-white cursor-pointer relative shrink-0">
+                                                                        <Mic size={20} />
+                                                                    </div>
+                                                                    <div className="flex flex-col flex-1 gap-1">
+                                                                        <div className="h-1 bg-black/20 dark:bg-white/20 rounded-full w-full mt-2 relative overflow-hidden">
+                                                                            <div className="absolute top-0 left-0 h-full bg-gray-500 w-1/3"></div>
+                                                                        </div>
+                                                                        <span className="text-xs opacity-70">{msg.duration || '0:00'}</span>
+                                                                    </div>
+                                                                </div>
                                                             ) : (
                                                                 <div className="relative">
                                                                     <span className="whitespace-pre-wrap break-words text-[#111b21] dark:text-gray-100">{displayText}<span className="inline-block w-16 h-3"></span></span>
@@ -497,12 +537,40 @@ const ChatWindow = () => {
             </div>
 
             {replyTo && <div className="bg-gray-100 dark:bg-wa-dark-paper px-4 py-2 border-l-4 border-wa-teal flex justify-between items-center z-10 mx-2 mt-2 rounded-lg"><div className="flex flex-col text-sm max-w-[90%]"><span className="text-wa-teal font-medium text-xs">Replying to {users[replyTo.senderId]?.name || 'User'}</span><span className="truncate text-gray-600 dark:text-gray-300">{replyTo.text}</span></div><button onClick={() => setReplyTo(null)}><X size={20} className="text-gray-500" /></button></div>}
-            {isSelectionMode ? <div className="p-3 bg-wa-grayBg dark:bg-wa-dark-header border-t border-wa-border dark:border-wa-dark-border z-10 flex items-center justify-center text-sm text-gray-500">Selection Mode Active</div> : (
+            
+            {/* --- Chat Footer / Input Area --- */}
+            {isSelectionMode ? (
+                <div className="p-3 bg-wa-grayBg dark:bg-wa-dark-header border-t border-wa-border dark:border-wa-dark-border z-10 flex items-center justify-center text-sm text-gray-500">Selection Mode Active</div> 
+            ) : isRecording ? (
+                // Recording UI
+                <div className="p-2 md:p-3 bg-wa-grayBg dark:bg-wa-dark-header border-t border-wa-border dark:border-wa-dark-border z-10 flex items-center gap-4 animate-in slide-in-from-bottom-2 duration-200">
+                    <button onClick={cancelRecording} className="p-3 text-red-500 hover:bg-black/5 rounded-full transition-colors">
+                        <Trash2 size={22} />
+                    </button>
+                    
+                    <div className="flex-1 flex items-center gap-3">
+                        <div className="flex items-center gap-2 text-[#54656f] dark:text-gray-300 text-lg font-mono">
+                            <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse"></div>
+                            {formatRecordingTime(recordingSeconds)}
+                        </div>
+                        <span className="text-xs text-[#667781] dark:text-gray-500 animate-pulse">Recording...</span>
+                    </div>
+
+                    <button onClick={finishRecording} className="p-3 bg-wa-teal text-white rounded-full shadow-md hover:scale-105 transition-transform">
+                        <Send size={20} className="ml-0.5" />
+                    </button>
+                </div>
+            ) : (
+                // Standard Input UI
                 <div className="p-2 md:p-3 bg-wa-grayBg dark:bg-wa-dark-header border-t border-wa-border dark:border-wa-dark-border z-10 flex items-center gap-2">
                     <button onClick={() => setShowPicker(!showPicker)} className="p-2 text-[#54656f] dark:text-gray-400 hover:bg-black/5 rounded-full transition-colors"><Smile size={24} /></button>
                     <button className="p-2 text-[#54656f] dark:text-gray-400 hover:bg-black/5 rounded-full transition-colors"><Paperclip size={24} /></button>
                     <div className="flex-1 bg-white dark:bg-wa-dark-input rounded-lg flex items-center px-4 py-2"><input type="text" className="w-full bg-transparent outline-none text-[#111b21] dark:text-gray-100 placeholder:text-[#667781] dark:placeholder:text-gray-500 text-[15px]" placeholder="Type a message" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={handleKeyDown} /></div>
-                    {inputText.trim() ? <button onClick={() => handleSendMessage()} className="p-3 bg-wa-teal text-white rounded-full shadow-md hover:scale-105 transition-transform"><Send size={20} className="ml-0.5" /></button> : <button className="p-3 bg-wa-teal text-white rounded-full shadow-md hover:scale-105 transition-transform"><Mic size={20} /></button>}
+                    {inputText.trim() ? (
+                        <button onClick={() => handleSendMessage()} className="p-3 bg-wa-teal text-white rounded-full shadow-md hover:scale-105 transition-transform"><Send size={20} className="ml-0.5" /></button> 
+                    ) : (
+                        <button onClick={startRecording} className="p-3 bg-wa-teal text-white rounded-full shadow-md hover:scale-105 transition-transform active:scale-95"><Mic size={20} /></button>
+                    )}
                 </div>
             )}
         </div>

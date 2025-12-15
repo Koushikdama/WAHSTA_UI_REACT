@@ -135,7 +135,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 return { 
                     ...c, 
                     groupRoles: roles,
-                    groupSettings: { editInfo: 'all', sendMessages: 'all' } as GroupSettings
+                    groupSettings: { 
+                        editInfo: 'all', 
+                        sendMessages: 'all', 
+                        addMembers: 'all', 
+                        approveMembers: false 
+                    } as GroupSettings
                 };
             }
             return c;
@@ -242,7 +247,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           groupName: groupName,
           groupParticipants: [...participantIds, currentUser.id],
           groupRoles: groupRoles,
-          groupSettings: { editInfo: 'all', sendMessages: 'all' },
+          groupSettings: { 
+              editInfo: 'all', 
+              sendMessages: 'all',
+              addMembers: 'all',
+              approveMembers: false
+          },
           timestamp: new Date().toISOString()
       };
 

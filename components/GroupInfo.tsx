@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User as UserIcon, Bell, Lock, Search, MoreVertical, Star, ThumbsUp, Trash2, LogOut, Pin, Palette, Check, Grid, Image as ImageIcon, Video as VideoIcon, FileText, BarChart2, ChevronRight, Download, Shield, EyeOff, ChevronDown, Unlock, CircleDashed, Plus, Settings } from 'lucide-react';
+import { ArrowLeft, User as UserIcon, Bell, Lock, Search, MoreVertical, Star, ThumbsUp, Trash2, LogOut, Pin, Palette, Check, Grid, Image as ImageIcon, Video as VideoIcon, FileText, BarChart2, ChevronRight, Download, Shield, EyeOff, ChevronDown, Unlock, CircleDashed, Plus, Settings, Ban, UserPlus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatTimestamp } from '../utils/formatTime';
 import StatusViewer from './StatusViewer';
@@ -36,7 +36,7 @@ const GroupInfo = () => {
 
   // Media State
   const [mediaFilter, setMediaFilter] = useState<MediaFilterType>('all');
-  const [isMediaDropdownOpen, setIsMediaDropdownOpen] = useState(false);
+  const [isMediaSectionExpanded, setIsMediaSectionExpanded] = useState(false);
   
   // Media Privacy Dropdown State (Settings)
   const [isMediaPrivacyOpen, setIsMediaPrivacyOpen] = useState(false);
@@ -85,6 +85,7 @@ const GroupInfo = () => {
   const myRole: GroupRole = isGroup ? (chat.groupRoles?.[currentUserId] || 'member') : 'member';
   const isOwner = myRole === 'owner';
   const isAdmin = myRole === 'admin' || isOwner;
+  const canAddParticipants = isAdmin || chat.groupSettings?.addMembers === 'all';
 
   // --- Filtering Logic for Locked Dates ---
   const isDateLocked = (timestamp: string) => {
@@ -397,98 +398,93 @@ const GroupInfo = () => {
       }
   };
 
-  const MediaDropdownOption = ({ type, label, icon: Icon }: { type: MediaFilterType, label: string, icon: any }) => (
-      <button 
-          onClick={() => { setMediaFilter(type); setIsMediaDropdownOpen(false); }}
-          className={`flex items-center gap-3 w-full px-4 py-3 hover:bg-wa-grayBg/80 dark:hover:bg-wa-dark-hover/80 transition-colors ${mediaFilter === type ? 'text-wa-teal bg-gray-50 dark:bg-white/5' : 'text-[#111b21] dark:text-gray-100'}`}
-      >
-          <Icon size={18} />
-          <span className="text-sm font-medium">{label}</span>
-          {mediaFilter === type && <Check size={16} className="ml-auto" />}
-      </button>
-  );
-
   const renderMediaSection = (isPrivateContext: boolean) => (
       <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm mb-3 shadow-sm transition-colors overflow-hidden rounded-lg">
            <div 
                 className="px-4 py-3 flex items-center justify-between border-b border-gray-100 dark:border-gray-800 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50"
-                onClick={() => setIsMediaDropdownOpen(!isMediaDropdownOpen)}
+                onClick={() => setIsMediaSectionExpanded(!isMediaSectionExpanded)}
            >
                 <div className="flex flex-col">
-                    <h3 className="text-sm text-[#667781] dark:text-gray-400 font-medium flex items-center gap-2">
+                    <h3 className="text-sm text-[#111b21] dark:text-gray-100 font-medium flex items-center gap-2">
                         {isPrivateContext ? 'Private Media' : 'Media, Docs & Analysis'}
-                        <ChevronDown size={14} className={`transition-transform duration-200 ${isMediaDropdownOpen ? 'rotate-180' : ''}`} />
                     </h3>
                     <p className="text-[10px] text-gray-400">
                         {isPrivateContext ? `${activeAllMedia.length} secured files` : `${activeAllMedia.length} files • ${documents.length} docs`}
                     </p>
                 </div>
 
-                {/* Filter Label */}
-                <div className="relative">
-                    <div className="flex items-center gap-1 bg-gray-100 dark:bg-wa-dark-paper px-2 py-1 rounded text-xs font-medium text-[#111b21] dark:text-gray-100 uppercase tracking-wide">
-                        <span className="capitalize">{mediaFilter}</span>
-                    </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-xs text-[#667781] dark:text-gray-500">{isMediaSectionExpanded ? 'Hide' : 'View'}</span>
+                    <ChevronRight size={16} className={`text-[#667781] dark:text-gray-400 transition-transform duration-200 ${isMediaSectionExpanded ? 'rotate-90' : ''}`} />
+                </div>
+           </div>
+           
+           {isMediaSectionExpanded && (
+               <div className="animate-in slide-in-from-top-2 duration-200">
+                   {/* Filter Tabs */}
+                   <div className="flex gap-2 px-4 py-3 overflow-x-auto no-scrollbar border-b border-gray-100 dark:border-gray-800">
+                       {['all', 'images', 'videos', 'doc', 'analysis'].map((f) => (
+                           <button
+                               key={f}
+                               onClick={() => setMediaFilter(f as MediaFilterType)}
+                               className={`px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-colors whitespace-nowrap
+                                   ${mediaFilter === f 
+                                       ? 'bg-wa-teal text-white shadow-sm' 
+                                       : 'bg-gray-100 dark:bg-wa-dark-paper text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10'
+                                   }
+                               `}
+                           >
+                               {f === 'doc' ? 'Docs' : f}
+                           </button>
+                       ))}
+                   </div>
 
-                    {/* Dropdown Menu */}
-                    {isMediaDropdownOpen && (
-                        <>
-                            <div className="fixed inset-0 z-30 cursor-default" onClick={(e) => { e.stopPropagation(); setIsMediaDropdownOpen(false); }}></div>
-                            <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-wa-dark-paper rounded-lg shadow-xl border border-wa-border dark:border-gray-700 z-40 overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
-                                <MediaDropdownOption type="all" label="All Media" icon={Grid} />
-                                <MediaDropdownOption type="images" label="Images" icon={ImageIcon} />
-                                <MediaDropdownOption type="videos" label="Videos" icon={VideoIcon} />
-                                <MediaDropdownOption type="doc" label="Documents" icon={FileText} />
-                                <MediaDropdownOption type="analysis" label="Analysis" icon={BarChart2} />
+                   {/* Content */}
+                   <div className="min-h-[150px]">
+                       {renderMediaContent(isPrivateContext)}
+                   </div>
+                   
+                   {/* Media Visibility Option (Only if public) */}
+                   {mediaFilter !== 'analysis' && !isPrivateContext && !chat.isLocked && (
+                        <div className="border-t border-gray-100 dark:border-gray-800">
+                            <div 
+                                className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50"
+                                onClick={() => setIsMediaPrivacyOpen(!isMediaPrivacyOpen)}
+                            >
+                                <span className="text-sm text-[#111b21] dark:text-gray-100">Media visibility</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-[#667781] dark:text-gray-500">{mediaVisibility}</span>
+                                    <ChevronRight size={16} className={`text-[#667781] dark:text-gray-400 transition-transform duration-200 ${isMediaPrivacyOpen ? 'rotate-90' : ''}`} />
+                                </div>
                             </div>
-                        </>
-                    )}
-                </div>
-           </div>
-           
-           {/* Content */}
-           <div className="min-h-[150px]">
-               {renderMediaContent(isPrivateContext)}
-           </div>
-           
-           {mediaFilter !== 'analysis' && !isPrivateContext && !chat.isLocked && (
-                <div className="border-t border-gray-100 dark:border-gray-800">
-                    <div 
-                        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50"
-                        onClick={() => setIsMediaPrivacyOpen(!isMediaPrivacyOpen)}
-                    >
-                        <span className="text-sm text-[#111b21] dark:text-gray-100">Media visibility</span>
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs text-[#667781] dark:text-gray-500">{mediaVisibility}</span>
-                            <ChevronRight size={16} className={`text-[#667781] dark:text-gray-400 transition-transform duration-200 ${isMediaPrivacyOpen ? 'rotate-90' : ''}`} />
+                            
+                            {isMediaPrivacyOpen && (
+                                <div className="px-6 pb-4 animate-in slide-in-from-top-2 duration-200">
+                                     <p className="text-xs text-[#667781] dark:text-gray-500 mb-3 leading-relaxed">
+                                         Show newly downloaded media from this chat in your device's gallery?
+                                     </p>
+                                     <div className="flex flex-col gap-3">
+                                         {['Default (Yes)', 'Yes', 'No'].map(opt => (
+                                             <label key={opt} className="flex items-center gap-3 cursor-pointer group">
+                                                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${mediaVisibility === opt ? 'border-wa-teal' : 'border-gray-400 dark:border-gray-500 group-hover:border-gray-600'}`}>
+                                                     {mediaVisibility === opt && <div className="w-2.5 h-2.5 rounded-full bg-wa-teal"></div>}
+                                                 </div>
+                                                 <span className="text-sm text-[#111b21] dark:text-gray-100">{opt}</span>
+                                                 <input 
+                                                    type="radio" 
+                                                    name="mediaVisibility" 
+                                                    className="hidden" 
+                                                    checked={mediaVisibility === opt} 
+                                                    onChange={() => setMediaVisibility(opt)}
+                                                 />
+                                             </label>
+                                         ))}
+                                     </div>
+                                </div>
+                            )}
                         </div>
-                    </div>
-                    
-                    {isMediaPrivacyOpen && (
-                        <div className="px-6 pb-4 animate-in slide-in-from-top-2 duration-200">
-                             <p className="text-xs text-[#667781] dark:text-gray-500 mb-3 leading-relaxed">
-                                 Show newly downloaded media from this chat in your device's gallery?
-                             </p>
-                             <div className="flex flex-col gap-3">
-                                 {['Default (Yes)', 'Yes', 'No'].map(opt => (
-                                     <label key={opt} className="flex items-center gap-3 cursor-pointer group">
-                                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${mediaVisibility === opt ? 'border-wa-teal' : 'border-gray-400 dark:border-gray-500 group-hover:border-gray-600'}`}>
-                                             {mediaVisibility === opt && <div className="w-2.5 h-2.5 rounded-full bg-wa-teal"></div>}
-                                         </div>
-                                         <span className="text-sm text-[#111b21] dark:text-gray-100">{opt}</span>
-                                         <input 
-                                            type="radio" 
-                                            name="mediaVisibility" 
-                                            className="hidden" 
-                                            checked={mediaVisibility === opt} 
-                                            onChange={() => setMediaVisibility(opt)}
-                                         />
-                                     </label>
-                                 ))}
-                             </div>
-                        </div>
-                    )}
-                </div>
+                   )}
+               </div>
            )}
       </div>
   );
@@ -543,6 +539,36 @@ const GroupInfo = () => {
                               <button onClick={() => updateGroupSettings(chat.id, { sendMessages: 'admins' })} className={`flex-1 py-2 text-sm rounded border ${chat.groupSettings?.sendMessages === 'admins' ? 'border-wa-teal text-wa-teal bg-green-50 dark:bg-green-900/10' : 'border-gray-300 text-gray-500'}`}>Admins</button>
                           </div>
                       )}
+                  </div>
+
+                  <div className="bg-white dark:bg-wa-dark-header rounded-lg shadow-sm p-4 mt-4">
+                      <div className="flex justify-between items-center mb-1">
+                          <h3 className="text-base text-[#111b21] dark:text-gray-100">Add other participants</h3>
+                          <div className={`text-xs px-2 py-1 rounded bg-gray-100 dark:bg-white/10 ${isAdmin ? 'text-green-600' : 'text-gray-500'}`}>
+                              {chat.groupSettings?.addMembers === 'all' ? 'All participants' : 'Only admins'}
+                          </div>
+                      </div>
+                      <p className="text-xs text-[#667781] dark:text-gray-500 mb-4">Choose who can add other participants to this group.</p>
+                      
+                      {isAdmin && (
+                          <div className="flex gap-2">
+                              <button onClick={() => updateGroupSettings(chat.id, { addMembers: 'all' })} className={`flex-1 py-2 text-sm rounded border ${chat.groupSettings?.addMembers === 'all' ? 'border-wa-teal text-wa-teal bg-green-50 dark:bg-green-900/10' : 'border-gray-300 text-gray-500'}`}>All</button>
+                              <button onClick={() => updateGroupSettings(chat.id, { addMembers: 'admins' })} className={`flex-1 py-2 text-sm rounded border ${chat.groupSettings?.addMembers === 'admins' ? 'border-wa-teal text-wa-teal bg-green-50 dark:bg-green-900/10' : 'border-gray-300 text-gray-500'}`}>Admins</button>
+                          </div>
+                      )}
+                  </div>
+
+                  <div className="bg-white dark:bg-wa-dark-header rounded-lg shadow-sm p-4 mt-4 flex justify-between items-center">
+                      <div className="flex-1 mr-4">
+                          <h3 className="text-base text-[#111b21] dark:text-gray-100 mb-1">Approve new participants</h3>
+                          <p className="text-xs text-[#667781] dark:text-gray-500">When turned on, admins must approve anyone who wants to join the group.</p>
+                      </div>
+                      <div 
+                          onClick={() => isAdmin && updateGroupSettings(chat.id, { approveMembers: !chat.groupSettings?.approveMembers })}
+                          className={`w-10 h-6 rounded-full p-1 transition-colors cursor-pointer shrink-0 ${chat.groupSettings?.approveMembers ? 'bg-wa-teal' : 'bg-gray-300 dark:bg-gray-600'}`}
+                      >
+                          <div className={`bg-white w-4 h-4 rounded-full shadow-sm transition-transform ${chat.groupSettings?.approveMembers ? 'translate-x-4' : ''}`}></div>
+                      </div>
                   </div>
 
                   {isOwner && (
@@ -653,7 +679,7 @@ const GroupInfo = () => {
                 <ArrowLeft size={24} />
             </button>
             <h2 className="text-lg text-[#111b21] dark:text-gray-100 font-medium">
-                {isGroup ? 'Group Info' : 'Contact Info'}
+                {isGroup ? 'Group Info' : 'User Info'}
             </h2>
         </div>
         
@@ -801,11 +827,11 @@ const GroupInfo = () => {
                                     <button 
                                         key={color.name}
                                         onClick={() => chatId && updateChatTheme(chatId, color.value, 'outgoing')}
-                                        className={`w-10 h-10 shrink-0 rounded-full border border-gray-200 dark:border-gray-600 flex items-center justify-center relative shadow-sm transition-transform hover:scale-105 ${isSelected ? 'ring-2 ring-wa-teal ring-offset-2 dark:ring-offset-wa-dark-header' : ''}`}
+                                        className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center relative shadow-sm transition-transform hover:scale-105 ${isSelected ? 'border-2 border-wa-teal' : 'border-2 border-gray-200 dark:border-gray-600'}`}
                                         style={{ backgroundColor: color.value || '#D9FDD3' }} 
                                         title={color.name}
                                     >
-                                        {isSelected && <Check size={16} className="text-black/60" />}
+                                        {isSelected && <Check size={16} strokeWidth={3} className="text-black/60" />}
                                     </button>
                                 )
                             })}
@@ -826,11 +852,11 @@ const GroupInfo = () => {
                                     <button 
                                         key={color.name}
                                         onClick={() => chatId && updateChatTheme(chatId, color.value, 'incoming')}
-                                        className={`w-10 h-10 shrink-0 rounded-full border border-gray-200 dark:border-gray-600 flex items-center justify-center relative shadow-sm transition-transform hover:scale-105 ${isSelected ? 'ring-2 ring-wa-teal ring-offset-2 dark:ring-offset-wa-dark-header' : ''}`}
+                                        className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center relative shadow-sm transition-transform hover:scale-105 ${isSelected ? 'border-2 border-wa-teal' : 'border-2 border-gray-200 dark:border-gray-600'}`}
                                         style={{ backgroundColor: color.value || '#FFFFFF' }} 
                                         title={color.name}
                                     >
-                                        {isSelected && <Check size={16} className="text-black/60" />}
+                                        {isSelected && <Check size={16} strokeWidth={3} className="text-black/60" />}
                                     </button>
                                 )
                             })}
@@ -882,6 +908,21 @@ const GroupInfo = () => {
                         <div className="px-6 py-3 text-sm text-[#667781] dark:text-gray-400 bg-white/50 dark:bg-black/10">
                             {chat.groupParticipants?.length} participants
                         </div>
+                        
+                        {canAddParticipants && (
+                            <div 
+                                className="flex items-center gap-4 px-6 py-3 hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 cursor-pointer"
+                                onClick={() => alert("Add participants flow would open here")}
+                            >
+                                <div className="w-10 h-10 rounded-full bg-wa-teal flex items-center justify-center text-white shrink-0">
+                                    <UserPlus size={22} />
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="text-base text-[#111b21] dark:text-gray-100">Add participants</h3>
+                                </div>
+                            </div>
+                        )}
+
                         {chat.groupParticipants?.map(pid => {
                             const user = users[pid] || (pid === currentUserId ? currentUser : null);
                             if (!user) return null;
@@ -920,14 +961,27 @@ const GroupInfo = () => {
                 )}
 
                 <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm shadow-sm transition-colors rounded-lg overflow-hidden">
-                    <div className="flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 text-red-500">
-                        <div className="w-6 flex justify-center"><LogOut size={22} /></div>
-                        <h3 className="text-base">Exit {isGroup ? 'group' : 'chat'}</h3>
-                    </div>
+                    {/* Exit Group (Only for groups) */}
+                    {isGroup && (
+                        <div className="flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 text-red-500">
+                            <div className="w-6 flex justify-center"><LogOut size={22} /></div>
+                            <h3 className="text-base">Exit group</h3>
+                        </div>
+                    )}
+                    
+                    {/* Report */}
                     <div className="flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 text-red-500">
                         <div className="w-6 flex justify-center"><Trash2 size={22} /></div>
-                        <h3 className="text-base">Report {isGroup ? 'group' : 'contact'}</h3>
+                        <h3 className="text-base">Report {isGroup ? 'group' : 'user'}</h3>
                     </div>
+
+                    {/* Block (Only for users) */}
+                    {!isGroup && (
+                        <div className="flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 text-red-500">
+                            <div className="w-6 flex justify-center"><Ban size={22} /></div>
+                            <h3 className="text-base">Block {contact?.name || 'user'}</h3>
+                        </div>
+                    )}
                 </div>
               </>
           )}

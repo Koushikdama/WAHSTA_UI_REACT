@@ -34,6 +34,8 @@ export type GroupRole = 'owner' | 'admin' | 'member';
 export interface GroupSettings {
     editInfo: 'all' | 'admins';
     sendMessages: 'all' | 'admins';
+    addMembers: 'all' | 'admins';
+    approveMembers: boolean;
 }
 
 export interface Chat {

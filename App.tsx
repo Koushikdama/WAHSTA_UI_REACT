@@ -59,11 +59,13 @@ const DesktopLayout = () => {
   }, [location]);
 
   // Determine if we should show the main sidebar header (Avatar + Nav Icons)
+  // Added location.pathname === '/status' to hide main header on status page
   const isSubPage = 
     location.pathname.startsWith('/settings') || 
     location.pathname.startsWith('/calls') || 
     location.pathname.startsWith('/new-chat') || 
     location.pathname.startsWith('/archived') ||
+    location.pathname === '/status' ||
     location.pathname.startsWith('/status/privacy');
   
   const showSidebarHeader = !isSubPage;
@@ -89,7 +91,7 @@ const DesktopLayout = () => {
         {/* Left Sidebar */}
         <div className="w-full md:w-[400px] flex flex-col border-r border-wa-border dark:border-wa-dark-border bg-white dark:bg-wa-dark-bg h-full relative z-10">
           
-          {/* Header - Only shown for main chat list and status */}
+          {/* Header - Only shown for main chat list */}
           {showSidebarHeader && (
             <div className="h-[60px] bg-wa-grayBg dark:bg-wa-dark-header flex items-center justify-between px-4 shrink-0 border-b border-wa-border dark:border-wa-dark-border">
                 <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/settings')}>
@@ -113,7 +115,7 @@ const DesktopLayout = () => {
                 <Search size={18} />
                 <input 
                     type="text" 
-                    placeholder={activeTab === 'status' ? "Search status" : "Search or start new chat"} 
+                    placeholder="Search or start new chat" 
                     className="bg-transparent outline-none text-sm w-full text-black dark:text-white placeholder:text-wa-gray dark:placeholder:text-gray-500"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
