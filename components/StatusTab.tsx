@@ -2,11 +2,23 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Lock, BadgeCheck, Camera, Edit2, X, Send, Smile, Type, Crop, User, Archive, ChevronDown, ChevronUp, MoreVertical, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Plus, Lock, BadgeCheck, Camera, Edit2, X, Send, Smile, Type, Crop, User, Archive, ChevronDown, ChevronUp, MoreVertical, ChevronRight, ArrowLeft, MapPin, Compass } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatTimestamp } from '../utils/formatTime';
 import { StatusUpdate, StatusPrivacyType } from '../types';
 import StatusViewer from './StatusViewer';
+
+// Mock Data for Nearby Friends
+const NEARBY_USERS = [
+    { id: 'n1', name: 'Sarah Connor', distance: 0.5, avatar: 'https://picsum.photos/seed/sarah/200' },
+    { id: 'n2', name: 'John Wick', distance: 2.1, avatar: 'https://picsum.photos/seed/wick/200' },
+    { id: 'n3', name: 'Ellen Ripley', distance: 4.5, avatar: 'https://picsum.photos/seed/ellen/200' },
+    { id: 'n4', name: 'Luke Skywalker', distance: 8.0, avatar: 'https://picsum.photos/seed/luke/200' },
+    { id: 'n5', name: 'Tony Stark', distance: 12.5, avatar: 'https://picsum.photos/seed/tony/200' },
+    { id: 'n6', name: 'Natasha Romanoff', distance: 0.8, avatar: 'https://picsum.photos/seed/nat/200' },
+    { id: 'n7', name: 'Bruce Wayne', distance: 15.0, avatar: 'https://picsum.photos/seed/bruce/200' },
+    { id: 'n8', name: 'Peter Parker', distance: 3.2, avatar: 'https://picsum.photos/seed/peter/200' },
+];
 
 interface StatusItemProps {
   update: StatusUpdate;
@@ -44,6 +56,12 @@ const StatusTab = () => {
   const [showArchiveAuth, setShowArchiveAuth] = useState(false);
   const [authPin, setAuthPin] = useState('');
   const [authError, setAuthError] = useState('');
+
+  // Dropdown States
+  const [isSuggestionsExpanded, setIsSuggestionsExpanded] = useState(true);
+  const [isNearbyExpanded, setIsNearbyExpanded] = useState(false);
+  
+  const [radiusFilter, setRadiusFilter] = useState(5); // km
 
   // Upload State
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,6 +110,11 @@ const StatusTab = () => {
           viewedUpdates: viewedBucket
       };
   }, [statusUpdates, chats, currentUserId, searchQuery, users]);
+
+  // Nearby Users Filtering
+  const filteredNearbyUsers = useMemo(() => {
+      return NEARBY_USERS.filter(u => u.distance <= radiusFilter);
+  }, [radiusFilter]);
 
   // --- Handlers ---
 
@@ -425,38 +448,130 @@ const StatusTab = () => {
           </div>
       )}
 
+      {/* SUGGESTIONS DROP DOWN (Renamed from Find Channels) */}
       {!searchQuery && (
-          <div className="pt-6 pb-2 border-t border-wa-border dark:border-wa-dark-border mt-4">
-             <div className="flex justify-between items-center px-4 mb-4">
-                <h3 className="text-[#111b21] dark:text-gray-200 font-medium text-[15px]">Find channels</h3>
-                <button className="text-wa-teal hover:opacity-80 text-sm font-medium transition-opacity">See all</button>
+          <div className="border-t border-wa-border dark:border-wa-dark-border mt-4">
+             <div 
+                onClick={() => setIsSuggestionsExpanded(!isSuggestionsExpanded)}
+                className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover transition-colors"
+             >
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-yellow-600">
+                        <Compass size={20} />
+                    </div>
+                    <div className="flex flex-col">
+                        <h3 className="text-[17px] text-[#111b21] dark:text-gray-200 font-medium">Suggestions</h3>
+                        <p className="text-[13px] text-[#667781] dark:text-gray-500">Find channels to follow</p>
+                    </div>
+                </div>
+                <div className="text-[#667781] dark:text-gray-400">
+                    {isSuggestionsExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                </div>
              </div>
              
-             <div className="flex gap-3 overflow-x-auto px-4 pb-4 no-scrollbar">
-                 {channels.map(channel => (
-                     <div key={channel.id} className="w-[140px] shrink-0 border border-gray-200 dark:border-gray-700 rounded-xl p-3 flex flex-col items-center gap-3 bg-white dark:bg-wa-dark-paper shadow-sm transition-transform hover:scale-[1.02] cursor-pointer">
-                         <div className="relative">
-                             <div className="w-16 h-16 rounded-full p-0.5 border border-gray-100 dark:border-gray-600 bg-white">
-                                <img src={channel.avatar} alt={channel.name} className="w-full h-full rounded-full object-cover" />
-                             </div>
-                             {channel.isVerified && (
-                                 <div className="absolute bottom-0 right-0 bg-white dark:bg-wa-dark-paper rounded-full p-[2px]">
-                                     <BadgeCheck size={18} className="text-[#008069] fill-white dark:fill-wa-dark-paper" /> 
+             {isSuggestionsExpanded && (
+                 <div className="animate-in slide-in-from-top-2 duration-200 pb-4">
+                     <div className="flex gap-3 overflow-x-auto px-4 pb-2 no-scrollbar">
+                         {channels.map(channel => (
+                             <div key={channel.id} className="w-[140px] shrink-0 border border-gray-200 dark:border-gray-700 rounded-xl p-3 flex flex-col items-center gap-3 bg-white dark:bg-wa-dark-paper shadow-sm transition-transform hover:scale-[1.02] cursor-pointer">
+                                 <div className="relative">
+                                     <div className="w-16 h-16 rounded-full p-0.5 border border-gray-100 dark:border-gray-600 bg-white">
+                                        <img src={channel.avatar} alt={channel.name} className="w-full h-full rounded-full object-cover" />
+                                     </div>
+                                     {channel.isVerified && (
+                                         <div className="absolute bottom-0 right-0 bg-white dark:bg-wa-dark-paper rounded-full p-[2px]">
+                                             <BadgeCheck size={18} className="text-[#008069] fill-white dark:fill-wa-dark-paper" /> 
+                                         </div>
+                                     )}
                                  </div>
-                             )}
-                         </div>
-                         
-                         <div className="text-center w-full">
-                             <h4 className="text-sm font-medium text-[#111b21] dark:text-gray-100 truncate leading-tight mb-0.5">{channel.name}</h4>
-                             <p className="text-[11px] text-[#667781] dark:text-gray-500 truncate">{channel.followers}</p>
-                         </div>
+                                 
+                                 <div className="text-center w-full">
+                                     <h4 className="text-sm font-medium text-[#111b21] dark:text-gray-100 truncate leading-tight mb-0.5">{channel.name}</h4>
+                                     <p className="text-[11px] text-[#667781] dark:text-gray-500 truncate">{channel.followers}</p>
+                                 </div>
 
-                         <button className="w-full py-1.5 bg-[#dcf8c6] text-[#008069] dark:bg-[#005c4b]/30 dark:text-[#00a884] hover:brightness-95 transition-all rounded-full text-sm font-medium">
-                            Follow
-                         </button>
+                                 <button className="w-full py-1.5 bg-[#dcf8c6] text-[#008069] dark:bg-[#005c4b]/30 dark:text-[#00a884] hover:brightness-95 transition-all rounded-full text-sm font-medium">
+                                    Follow
+                                 </button>
+                             </div>
+                         ))}
                      </div>
-                 ))}
-             </div>
+                     <div className="flex justify-end px-4 mt-2">
+                        <button className="text-wa-teal hover:opacity-80 text-sm font-medium transition-opacity">See all</button>
+                     </div>
+                 </div>
+             )}
+          </div>
+      )}
+
+      {/* NEARBY FRIENDS SECTION */}
+      {!searchQuery && (
+          <div className="border-t border-wa-border dark:border-wa-dark-border mt-2">
+              <div 
+                  onClick={() => setIsNearbyExpanded(!isNearbyExpanded)}
+                  className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover transition-colors"
+              >
+                  <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-500">
+                          <MapPin size={20} />
+                      </div>
+                      <div className="flex flex-col">
+                          <h3 className="text-[17px] text-[#111b21] dark:text-gray-200 font-medium">Nearby Friends</h3>
+                          <p className="text-[13px] text-[#667781] dark:text-gray-500">Find people around you</p>
+                      </div>
+                  </div>
+                  <div className="text-[#667781] dark:text-gray-400">
+                      {isNearbyExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                  </div>
+              </div>
+
+              {isNearbyExpanded && (
+                  <div className="animate-in slide-in-from-top-2 duration-200 pb-4">
+                      {/* Radius Filter */}
+                      <div className="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar">
+                          {[1, 5, 10, 20, 50].map(r => (
+                              <button
+                                  key={r}
+                                  onClick={(e) => { e.stopPropagation(); setRadiusFilter(r); }}
+                                  className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors shadow-sm
+                                      ${radiusFilter === r 
+                                          ? 'bg-wa-teal text-white' 
+                                          : 'bg-gray-100 dark:bg-wa-dark-header text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-wa-dark-hover'
+                                      }
+                                  `}
+                              >
+                                  Within {r} km
+                              </button>
+                          ))}
+                      </div>
+
+                      {/* Horizontal List */}
+                      <div className="flex gap-3 overflow-x-auto px-4 pb-2 no-scrollbar">
+                          {filteredNearbyUsers.map(user => (
+                              <div key={user.id} className="w-[140px] shrink-0 border border-gray-200 dark:border-gray-700 rounded-xl p-3 flex flex-col items-center gap-2 bg-white dark:bg-wa-dark-paper shadow-sm">
+                                  <div className="relative">
+                                      <img src={user.avatar} className="w-14 h-14 rounded-full object-cover" alt="" />
+                                      <div className="absolute -bottom-1 -right-1 bg-white dark:bg-wa-dark-paper rounded-full px-1.5 py-0.5 border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-0.5">
+                                          <MapPin size={8} className="text-blue-500" />
+                                          <span className="text-[9px] font-bold text-gray-600 dark:text-gray-300">{user.distance}km</span>
+                                      </div>
+                                  </div>
+                                  <div className="text-center w-full mb-1">
+                                      <h4 className="text-sm font-medium text-[#111b21] dark:text-gray-100 truncate">{user.name}</h4>
+                                  </div>
+                                  <button className="w-full py-1.5 bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors rounded-full text-xs font-bold">
+                                      Say Hi 👋
+                                  </button>
+                              </div>
+                          ))}
+                          {filteredNearbyUsers.length === 0 && (
+                              <div className="w-full text-center py-4 text-sm text-gray-500 italic">
+                                  No friends found within {radiusFilter} km.
+                              </div>
+                          )}
+                      </div>
+                  </div>
+              )}
           </div>
       )}
 
