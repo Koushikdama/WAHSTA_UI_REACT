@@ -1,11 +1,11 @@
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { useCall } from '../context/CallContext';
 import { useGame } from '../context/GameContext';
 import { useWorkerMessageSearch } from './useWorkerSearch';
-import { Message } from '../types';
+import { Message, PollData } from '../types';
 
 export const useChatWindowController = () => {
     const { chatId } = useParams();
@@ -15,7 +15,7 @@ export const useChatWindowController = () => {
     const { 
         chats, messages, users, currentUser, addMessage, deleteMessages, 
         togglePinMessage, addReaction, currentUserId, chatSettings, 
-        toggleDateLock, securitySettings 
+        toggleDateLock, securitySettings, drafts, setDraft, votePoll
     } = useApp();
     const { startCall } = useCall();
     const { openGameInvite } = useGame();
@@ -57,6 +57,22 @@ export const useChatWindowController = () => {
         searchQuery: messageSearchQuery
     });
 
+    // --- Draft Logic ---
+    useEffect(() => {
+        // Restore draft when chat changes
+        if (chatId) {
+            setInputText(drafts[chatId] || '');
+        }
+    }, [chatId]); // Only when ID changes
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const text = e.target.value;
+        setInputText(text);
+        if (chatId) {
+            setDraft(chatId, text);
+        }
+    };
+
     // Effects
     useEffect(() => {
         if (messagesEndRef.current && !messageSearchQuery) {
@@ -70,6 +86,7 @@ export const useChatWindowController = () => {
         if (!chatId || !inputText.trim()) return;
         addMessage(chatId, inputText, 'text', replyTo?.id);
         setInputText('');
+        setDraft(chatId, ''); // Clear draft
         setReplyTo(null);
         setShowAttachMenu(false); // Close menu on send
     };
@@ -143,6 +160,16 @@ export const useChatWindowController = () => {
         }
     };
 
+    const handleSendPoll = (data: PollData) => {
+        if (!chatId) return;
+        addMessage(chatId, "Poll", 'poll', undefined, undefined, undefined, data);
+        setShowAttachMenu(false);
+    };
+
+    const handleVote = (msgId: string, optionIds: string[]) => {
+        if (chatId) votePoll(chatId, msgId, optionIds);
+    };
+
     // Date Lock Logic
     const handleLockVerify = (e: React.FormEvent) => {
         e.preventDefault();
@@ -171,7 +198,7 @@ export const useChatWindowController = () => {
         chatSettings,
         
         // State
-        inputText, setInputText,
+        inputText, setInputText: handleInputChange, // Use the draft-aware handler
         showPicker, setShowPicker,
         showAttachMenu, setShowAttachMenu,
         activeMessageId, setActiveMessageId,
@@ -203,7 +230,9 @@ export const useChatWindowController = () => {
         toggleSelection,
         handleDeleteSelected,
         handleLockVerify,
-        addMessage, // Expose addMessage for custom media sending
+        addMessage,
+        handleSendPoll,
+        handleVote,
         
         // Navigation / External
         navigateToChats,

@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User as UserIcon, Bell, Lock, Search, MoreVertical, Star, ThumbsUp, Trash2, LogOut, Pin, Palette, Check, Grid, Image as ImageIcon, Video as VideoIcon, FileText, BarChart2, ChevronRight, Download, Shield, EyeOff, ChevronDown, Unlock, CircleDashed, Plus, Settings, Ban, UserPlus } from 'lucide-react';
+import { ArrowLeft, User as UserIcon, Bell, Lock, Search, MoreVertical, Star, ThumbsUp, Trash2, LogOut, Pin, Palette, Check, Grid, Image as ImageIcon, Video as VideoIcon, FileText, BarChart2, ChevronRight, Download, Shield, EyeOff, ChevronDown, Unlock, CircleDashed, Plus, Settings, Ban, UserPlus, QrCode } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatTimestamp } from '../utils/formatTime';
 import StatusViewer from './StatusViewer';
@@ -711,7 +711,34 @@ const GroupInfo = () => {
 
       <div className="flex-1 pb-10 relative z-10">
           <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm flex flex-col items-center py-6 mb-3 shadow-sm transition-colors rounded-b-lg">
-               <img src={avatar} alt="Avatar" className="w-28 h-28 rounded-full object-cover mb-4 shadow-sm ring-2 ring-white dark:ring-wa-dark-bg" />
+               
+               {/* 3D Flip Profile Container */}
+               <div className="relative w-28 h-28 mb-4 group cursor-pointer perspective-[1000px]">
+                    <div className="relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)]">
+                        {/* Front Face - Profile Picture */}
+                        <div className="absolute inset-0 w-full h-full [backface-visibility:hidden]">
+                            <img 
+                                src={avatar} 
+                                alt="Avatar" 
+                                className="w-full h-full rounded-full object-cover shadow-sm ring-2 ring-white dark:ring-wa-dark-bg" 
+                            />
+                        </div>
+                        
+                        {/* Back Face - QR Code */}
+                        <div className="absolute inset-0 w-full h-full rounded-full bg-white flex items-center justify-center [transform:rotateY(180deg)] [backface-visibility:hidden] shadow-sm ring-2 ring-wa-teal overflow-hidden">
+                            <img 
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${chatId}`} 
+                                alt="QR Code" 
+                                className="w-3/4 h-3/4 object-contain opacity-90"
+                            />
+                        </div>
+                    </div>
+                    {/* Small visual cue for flip interaction */}
+                    <div className="absolute bottom-0 right-0 bg-white dark:bg-wa-dark-paper rounded-full p-1 shadow-md opacity-80 group-hover:opacity-0 transition-opacity">
+                        <QrCode size={12} className="text-wa-teal" />
+                    </div>
+               </div>
+
                <h1 className="text-2xl text-[#111b21] dark:text-gray-100 font-normal mb-1">{title}</h1>
                <p className="text-[#667781] dark:text-gray-500 text-base mb-4">{subtitle}</p>
                

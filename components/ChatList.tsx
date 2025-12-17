@@ -12,7 +12,7 @@ type FilterType = 'all' | 'unread' | 'groups';
 const ChatList = () => {
   const navigate = useNavigate();
   const { chatId: activeChatId } = useParams();
-  const { searchQuery, chats, messages, toggleArchiveChat, togglePinChat, securitySettings, users, chatSettings } = useApp();
+  const { searchQuery, chats, messages, toggleArchiveChat, togglePinChat, securitySettings, users, chatSettings, drafts } = useApp();
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [isLockModalOpen, setIsLockModalOpen] = useState(false);
   const [pin, setPin] = useState('');
@@ -154,6 +154,7 @@ const ChatList = () => {
                 const lastMsg = chatMessages.length > 0 ? chatMessages[chatMessages.length - 1] : null;
                 const isTyping = chat.id === 'c1' && Math.random() > 0.8; 
                 const isActive = chat.id === activeChatId;
+                const draft = drafts[chat.id];
 
                 return (
                 <div 
@@ -173,26 +174,34 @@ const ChatList = () => {
                         <h3 className="text-[17px] text-[#111b21] dark:text-gray-100 font-normal truncate">
                             {chat.isGroup ? chat.groupName : user?.name}
                         </h3>
-                        <span className={`text-[12px] ${chat.unreadCount > 0 ? 'text-wa-lightGreen font-medium' : 'text-[#667781] dark:text-gray-400'}`}>
+                        <span className={`text-[12px] ${chat.unreadCount > 0 || draft ? 'text-wa-lightGreen font-medium' : 'text-[#667781] dark:text-gray-400'}`}>
                             {formatTimestamp(chat.timestamp)}
                         </span>
                     </div>
                     
                     <div className="flex justify-between items-center">
                         <div className="flex items-center gap-1 text-[14px] text-[#667781] dark:text-gray-400 truncate w-full pr-2">
-                            {lastMsg?.senderId === 'me' && !isTyping && (
-                                lastMsg.status === 'read' 
-                                ? <CheckCheck size={16} className="text-wa-blue shrink-0" /> 
-                                : <Check size={16} className="shrink-0" />
-                            )}
-                            
-                            {isTyping ? (
-                                <span className="text-wa-lightGreen font-medium">typing...</span>
-                            ) : (
-                                <span className="truncate flex items-center gap-1">
-                                    {lastMsg?.type === 'voice' && <Mic size={14} />}
-                                    {lastMsg ? lastMsg.text : 'Start a conversation'}
+                            {draft ? (
+                                <span className="flex items-center gap-1 text-[#667781] dark:text-gray-400 truncate">
+                                    <span className="text-red-500 font-medium">Draft:</span> {draft}
                                 </span>
+                            ) : (
+                                <>
+                                    {lastMsg?.senderId === 'me' && !isTyping && (
+                                        lastMsg.status === 'read' 
+                                        ? <CheckCheck size={16} className="text-wa-blue shrink-0" /> 
+                                        : <Check size={16} className="shrink-0" />
+                                    )}
+                                    
+                                    {isTyping ? (
+                                        <span className="text-wa-lightGreen font-medium">typing...</span>
+                                    ) : (
+                                        <span className="truncate flex items-center gap-1">
+                                            {lastMsg?.type === 'voice' && <Mic size={14} />}
+                                            {lastMsg ? lastMsg.text : 'Start a conversation'}
+                                        </span>
+                                    )}
+                                </>
                             )}
                         </div>
 

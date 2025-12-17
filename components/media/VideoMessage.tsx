@@ -6,9 +6,10 @@ interface VideoMessageProps {
     src: string;
     poster?: string;
     duration?: string;
+    className?: string;
 }
 
-const VideoMessage: React.FC<VideoMessageProps> = ({ src, poster, duration }) => {
+const VideoMessage: React.FC<VideoMessageProps> = ({ src, poster, duration, className }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
 
@@ -24,13 +25,22 @@ const VideoMessage: React.FC<VideoMessageProps> = ({ src, poster, duration }) =>
         }
     }
 
+    const handleVideoClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        // If controls are visible, let the browser handle clicks on controls
+        // If clicking the video area, toggle play
+        if (!isPlaying) {
+            togglePlay(e);
+        }
+    };
+
     return (
-        <div className="relative w-full max-h-[400px] min-w-[200px] bg-black rounded-lg overflow-hidden cursor-pointer group" onClick={togglePlay}>
+        <div className={`relative bg-black overflow-hidden cursor-pointer group flex items-center justify-center ${className || 'w-full max-h-[400px] min-w-[200px] rounded-lg'}`} onClick={handleVideoClick}>
             <video 
                 ref={videoRef}
                 src={src} 
                 poster={poster}
-                className="w-full h-full object-contain max-h-[400px]"
+                className={`w-full h-full ${className ? 'object-contain' : 'object-cover max-h-[400px]'}`}
                 onEnded={() => setIsPlaying(false)}
                 onPause={() => setIsPlaying(false)}
                 onPlay={() => setIsPlaying(true)}
@@ -38,17 +48,22 @@ const VideoMessage: React.FC<VideoMessageProps> = ({ src, poster, duration }) =>
                 controls={isPlaying} 
             />
             
+            {/* Play Button Overlay - Only visible when NOT playing */}
             {!isPlaying && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-all z-10">
-                    <div className="w-12 h-12 bg-black/40 rounded-full flex items-center justify-center text-white backdrop-blur-sm border border-white/20 shadow-lg transform group-hover:scale-110 transition-transform">
-                        <Play size={20} fill="currentColor" className="ml-1 opacity-90" />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/30 transition-all z-10">
+                    <div 
+                        onClick={togglePlay}
+                        className="w-14 h-14 bg-black/50 rounded-full flex items-center justify-center text-white backdrop-blur-sm border border-white/30 shadow-lg transform group-hover:scale-110 transition-transform"
+                    >
+                        <Play size={24} fill="currentColor" className="ml-1 opacity-100" />
                     </div>
                 </div>
             )}
 
+            {/* Duration Badge - Only visible when NOT playing */}
             {duration && !isPlaying && (
-                <span className="absolute bottom-2 left-2 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded backdrop-blur-md font-medium z-10 flex items-center gap-1">
-                    <Video size={10} /> {duration}
+                <span className="absolute bottom-2 left-2 bg-black/60 text-white text-[11px] px-2 py-1 rounded-md backdrop-blur-md font-medium z-10 flex items-center gap-1.5 shadow-sm">
+                    <Video size={12} /> {duration}
                 </span>
             )}
         </div>

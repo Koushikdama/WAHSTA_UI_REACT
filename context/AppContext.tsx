@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, Chat, Message, MessageType, ChatSettings, SecuritySettings, Call, StatusUpdate, GameConfig, Channel, ChatDocument, AppConfig, StatusPrivacyType, GroupRole, GroupSettings } from '../types';
+import { User, Chat, Message, MessageType, ChatSettings, SecuritySettings, Call, StatusUpdate, GameConfig, Channel, ChatDocument, AppConfig, StatusPrivacyType, GroupRole, GroupSettings, PollData } from '../types';
 import { useChatData } from '../hooks/useChatData';
 
 interface AppContextType {
@@ -31,13 +31,16 @@ interface AppContextType {
   statusUpdates: StatusUpdate[];
   channels: Channel[];
   chatDocuments: Record<string, ChatDocument[]>;
+  drafts: Record<string, string>;
+  setDraft: (chatId: string, text: string) => void;
   gameConfig?: GameConfig;
   appConfig?: AppConfig;
   startChat: (contactId: string) => string;
   createGroup: (groupName: string, participantIds: string[]) => string;
   updateGroupSettings: (chatId: string, settings: Partial<GroupSettings>) => void;
   updateGroupRole: (chatId: string, userId: string, role: GroupRole) => void;
-  addMessage: (chatId: string, text: string, type: MessageType, replyToId?: string, mediaUrl?: string, duration?: string) => void;
+  addMessage: (chatId: string, text: string, type: MessageType, replyToId?: string, mediaUrl?: string, duration?: string, pollData?: PollData) => void;
+  votePoll: (chatId: string, messageId: string, optionIds: string[]) => void;
   deleteMessages: (chatId: string, messageIds: string[], deleteForEveryone: boolean) => void;
   toggleArchiveChat: (chatId: string) => void;
   togglePinChat: (chatId: string) => void;
@@ -70,13 +73,11 @@ const DEFAULT_SECURITY_SETTINGS: SecuritySettings = {
 
 const DEFAULT_USER: User = { id: 'me', name: 'User', avatar: '', about: '', phone: '' };
 
-export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const { data, loading: dataLoading } = useChatData();
 
-  // Auth State
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-      return localStorage.getItem('isAuthenticated') === 'true';
-  });
+  // Auth State - Default to TRUE to bypass login for testing
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
@@ -113,6 +114,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [statusUpdates, setStatusUpdates] = useState<StatusUpdate[]>([]);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [chatDocuments, setChatDocuments] = useState<Record<string, ChatDocument[]>>({});
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
 
   // Initialize data when fetched
   useEffect(() => {
@@ -227,6 +229,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem('currentUser', JSON.stringify(updated));
   };
 
+  const setDraft = (chatId: string, text: string) => {
+      setDrafts(prev => {
+          if (!text) {
+              const newState = { ...prev };
+              delete newState[chatId];
+              return newState;
+          }
+          return { ...prev, [chatId]: text };
+      });
+  };
+
   const startChat = (contactId: string): string => {
     const existingChat = chats.find(c => c.contactId === contactId && !c.isGroup);
     if (existingChat) return existingChat.id;
@@ -317,7 +330,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }));
   };
 
-  const addMessage = (chatId: string, text: string, type: MessageType, replyToId?: string, mediaUrl?: string, duration?: string) => {
+  const addMessage = (chatId: string, text: string, type: MessageType, replyToId?: string, mediaUrl?: string, duration?: string, pollData?: PollData) => {
       const newMessage: Message = {
           id: `m_${Date.now()}`,
           chatId,
@@ -328,7 +341,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           type,
           replyToId,
           mediaUrl,
-          duration
+          duration,
+          pollData
       };
 
       setMessages(prev => ({
@@ -355,6 +369,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
   };
 
+  const votePoll = (chatId: string, messageId: string, optionIds: string[]) => {
+      setMessages(prev => {
+          const chatMessages = prev[chatId] || [];
+          return {
+              ...prev,
+              [chatId]: chatMessages.map(msg => {
+                  if (msg.id === messageId && msg.type === 'poll' && msg.pollData) {
+                      const newOptions = msg.pollData.options.map(opt => {
+                          const hasVoted = optionIds.includes(opt.id);
+                          const voters = new Set(opt.voters);
+                          
+                          if (hasVoted) voters.add(currentUser.id);
+                          else voters.delete(currentUser.id);
+                          
+                          return { ...opt, voters: Array.from(voters) };
+                      });
+                      
+                      return { ...msg, pollData: { ...msg.pollData, options: newOptions } };
+                  }
+                  return msg;
+              })
+          };
+      });
+  };
+
   const deleteMessages = (chatId: string, messageIds: string[], deleteForEveryone: boolean) => {
     setMessages(prev => {
       const chatMessages = prev[chatId] || [];
@@ -372,7 +411,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                   type: 'text',
                   reactions: undefined,
                   mediaUrl: undefined,
-                  replyToId: undefined
+                  replyToId: undefined,
+                  pollData: undefined
                 } 
               : msg
           )
@@ -512,6 +552,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         statusUpdates,
         channels,
         chatDocuments,
+        drafts,
+        setDraft,
         gameConfig: data?.gameConfig,
         appConfig: data?.appConfig,
         startChat,
@@ -519,6 +561,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateGroupSettings,
         updateGroupRole,
         addMessage,
+        votePoll,
         deleteMessages,
         toggleArchiveChat,
         togglePinChat,

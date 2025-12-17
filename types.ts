@@ -9,7 +9,19 @@ export interface User {
 }
 
 export type MessageStatus = 'sent' | 'delivered' | 'read';
-export type MessageType = 'text' | 'image' | 'voice' | 'video';
+export type MessageType = 'text' | 'image' | 'voice' | 'video' | 'poll';
+
+export interface PollOption {
+    id: string;
+    text: string;
+    voters: string[]; // userIds
+}
+
+export interface PollData {
+    question: string;
+    options: PollOption[];
+    allowMultiple: boolean;
+}
 
 export interface Message {
   id: string;
@@ -22,6 +34,7 @@ export interface Message {
   duration?: string; // For voice/video
   mediaUrl?: string; // Single media
   mediaUrls?: string[]; // Multiple media for carousel
+  pollData?: PollData; // For polls
   isForwarded?: boolean;
   isPinned?: boolean;
   reactions?: Record<string, string>; // userId -> emoji

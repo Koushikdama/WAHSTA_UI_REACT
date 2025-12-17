@@ -17,7 +17,7 @@ interface GameContextType {
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
-export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const GameProvider = ({ children }: { children: React.ReactNode }) => {
   const { currentUserId } = useApp();
   const [activeGame, setActiveGame] = useState<Game | null>(null);
   const [isGameInviteOpen, setIsGameInviteOpen] = useState(false);

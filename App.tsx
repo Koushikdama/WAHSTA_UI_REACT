@@ -49,7 +49,7 @@ const GlobalGameUI = () => {
 };
 
 // Protected Route Wrapper
-const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     const { isAuthenticated } = useApp();
     const location = useLocation();
 
@@ -57,7 +57,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
-    return children;
+    return <>{children}</>;
 };
 
 const DesktopLayout = () => {

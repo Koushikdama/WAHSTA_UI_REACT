@@ -4,12 +4,15 @@ import {
   ArrowLeft, MoreVertical, Phone, Video as VideoIcon, Search, Smile, Paperclip, Mic, Send, 
   Check, CheckCheck, Reply, Trash2, Star, Forward, Info, X,
   Languages, Pin, Lock, ArrowUp, ArrowDown, CheckSquare, Globe,
-  FileText, Camera, Image as ImageIcon, Headphones, MapPin, User, BarChart2, PenTool
+  FileText, Camera, Image as ImageIcon, Headphones, MapPin, User, BarChart2, PenTool, Link as LinkIcon,
+  Crop, Type, Sliders, Plus
 } from 'lucide-react';
 import { useChatWindowController } from '../hooks/useChatWindowController';
 import MediaCarousel from './media/MediaCarousel';
 import VideoMessage from './media/VideoMessage';
 import DrawingCanvas from './media/DrawingCanvas';
+import PollCreator from './media/PollCreator';
+import { PollData, Message } from '../types';
 
 const REACTIONS_LIST = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
@@ -60,6 +63,99 @@ const mockTranslate = (text: string, lang: string): string => {
     return `[${lang} Translation]: ${text}`;
 }
 
+// Link Preview Component
+const LinkPreview = ({ text }: { text: string }) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const match = text.match(urlRegex);
+    if (!match) return null;
+    
+    const url = match[0];
+    // Simple mock logic for preview
+    const domain = new URL(url).hostname;
+    
+    return (
+        <div className="mt-2 bg-black/5 dark:bg-white/5 rounded-lg overflow-hidden border border-black/10 dark:border-white/10 max-w-sm">
+            <div className="h-32 bg-gray-200 dark:bg-gray-700 relative">
+                <img 
+                    src={`https://picsum.photos/seed/${domain}/400/200`} 
+                    alt="Preview" 
+                    className="w-full h-full object-cover"
+                />
+            </div>
+            <div className="p-2">
+                <h4 className="font-bold text-sm text-[#111b21] dark:text-gray-100 truncate">{domain}</h4>
+                <p className="text-xs text-[#667781] dark:text-gray-400 line-clamp-2">Check out this interesting link from {domain}. Click to read more about this content.</p>
+                <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 mt-1 block truncate">{url}</a>
+            </div>
+        </div>
+    );
+};
+
+// Poll Component
+const PollMessage = ({ msg, onVote, currentUserId }: { msg: Message, onVote: (msgId: string, optionIds: string[]) => void, currentUserId: string }) => {
+    if (!msg.pollData) return null;
+    
+    const { question, options, allowMultiple } = msg.pollData;
+    const totalVotes = options.reduce((acc, opt) => acc + opt.voters.length, 0);
+
+    const handleOptionClick = (optionId: string) => {
+        const currentVotedOptions = options.filter(o => o.voters.includes(currentUserId)).map(o => o.id);
+        let newSelection: string[] = [];
+
+        if (allowMultiple) {
+            if (currentVotedOptions.includes(optionId)) {
+                newSelection = currentVotedOptions.filter(id => id !== optionId);
+            } else {
+                newSelection = [...currentVotedOptions, optionId];
+            }
+        } else {
+            if (currentVotedOptions.includes(optionId)) {
+                newSelection = []; // Toggle off
+            } else {
+                newSelection = [optionId]; // Switch
+            }
+        }
+        onVote(msg.id, newSelection);
+    };
+
+    return (
+        <div className="min-w-[250px] max-w-[300px]">
+            <h3 className="text-base font-bold text-[#111b21] dark:text-gray-100 mb-3">{question}</h3>
+            <div className="flex flex-col gap-2">
+                {options.map(opt => {
+                    const isVoted = opt.voters.includes(currentUserId);
+                    const percentage = totalVotes > 0 ? Math.round((opt.voters.length / totalVotes) * 100) : 0;
+                    
+                    return (
+                        <div key={opt.id} className="cursor-pointer group" onClick={(e) => { e.stopPropagation(); handleOptionClick(opt.id); }}>
+                            <div className="flex items-center gap-3 mb-1">
+                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isVoted ? 'border-wa-teal bg-wa-teal' : 'border-gray-400 dark:border-gray-500'}`}>
+                                    {isVoted && <Check size={12} className="text-white" strokeWidth={3} />}
+                                </div>
+                                <span className="text-sm text-[#111b21] dark:text-gray-100 flex-1">{opt.text}</span>
+                            </div>
+                            <div className="relative h-2 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
+                                <div className="absolute top-0 left-0 h-full bg-wa-teal transition-all duration-300" style={{ width: `${percentage}%` }}></div>
+                            </div>
+                            <div className="flex justify-between mt-0.5">
+                                <div className="flex -space-x-1">
+                                    {opt.voters.slice(0,3).map((v, i) => (
+                                        <div key={i} className="w-4 h-4 rounded-full bg-gray-300 border border-white dark:border-gray-800"></div>
+                                    ))}
+                                </div>
+                                <span className="text-[10px] text-gray-500">{opt.voters.length} votes</span>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+            <div className="mt-3 pt-2 border-t border-black/5 dark:border-white/5 text-center">
+                <span className="text-xs text-wa-teal font-medium">View Votes</span>
+            </div>
+        </div>
+    );
+};
+
 const AttachmentIcon = ({ icon, color, label, onClick }: { icon: React.ReactNode, color: string, label: string, onClick?: () => void }) => (
     <div className="flex flex-col items-center gap-2 cursor-pointer transition-transform active:scale-95 hover:scale-105" onClick={onClick}>
         <div className={`w-14 h-14 rounded-full ${color} flex items-center justify-center text-white shadow-lg`}>
@@ -73,6 +169,11 @@ const ChatWindow = () => {
     const ctrl = useChatWindowController();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isDrawing, setIsDrawing] = useState(false);
+    const [isPolling, setIsPolling] = useState(false);
+    
+    // Media Preview State
+    const [previewMedia, setPreviewMedia] = useState<{ url: string, file: File, type: 'image' | 'video' } | null>(null);
+    const [previewCaption, setPreviewCaption] = useState('');
 
     if (!ctrl.chat) return (
         <div className="flex flex-col items-center justify-center h-full text-gray-500 bg-wa-bg">
@@ -110,15 +211,65 @@ const ChatWindow = () => {
     };
 
     const handleAttachmentSelect = (type: string) => {
-        if (type === 'gallery' || type === 'document' || type === 'camera') {
-            // Trigger hidden file input for visual effect
-            fileInputRef.current?.click();
+        if (!fileInputRef.current) return;
+
+        if (type === 'gallery' || type === 'camera') {
+            fileInputRef.current.accept = "image/*,video/*";
+            fileInputRef.current.click();
+        } else if (type === 'document') {
+            fileInputRef.current.accept = "*/*";
+            fileInputRef.current.click();
         } else if (type === 'draw') {
             setIsDrawing(true);
+        } else if (type === 'poll') {
+            setIsPolling(true);
+        } else if (type === 'location') {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    const { latitude, longitude } = position.coords;
+                    const mapUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
+                    ctrl.addMessage(ctrl.chatId!, `📍 My Location\n${mapUrl}`, 'text');
+                }, (error) => {
+                    alert('Unable to retrieve location.');
+                });
+            } else {
+                alert('Geolocation is not supported by this browser.');
+            }
         } else {
-            // Placeholder for other types
             alert(`${type} feature coming soon!`);
         }
+        ctrl.setShowAttachMenu(false);
+    };
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+                const url = URL.createObjectURL(file);
+                const type = file.type.startsWith('video/') ? 'video' : 'image';
+                setPreviewMedia({ url, file, type });
+                setPreviewCaption('');
+            } else {
+                // Handle documents or other files directly
+                ctrl.addMessage(ctrl.chatId!, `📄 ${file.name}`, 'text');
+            }
+        }
+        e.target.value = ''; // Reset input to allow selecting same file again
+    };
+
+    const handleSendMedia = () => {
+        if (!previewMedia || !ctrl.chatId) return;
+        
+        ctrl.addMessage(
+            ctrl.chatId, 
+            previewCaption, 
+            previewMedia.type, 
+            undefined, 
+            previewMedia.url
+        );
+        
+        setPreviewMedia(null);
+        setPreviewCaption('');
         ctrl.setShowAttachMenu(false);
     };
 
@@ -129,15 +280,84 @@ const ChatWindow = () => {
         setIsDrawing(false);
     };
 
+    const handlePollSend = (pollData: PollData) => {
+        ctrl.handleSendPoll(pollData);
+        setIsPolling(false);
+    };
+
     return (
         <div className="flex flex-col h-full bg-[#EFEAE2] dark:bg-[#0b141a] relative">
             <div className="absolute inset-0 opacity-40 pointer-events-none z-0" 
                  style={{ backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")', backgroundRepeat: 'repeat', backgroundSize: '400px' }}>
             </div>
 
-            {/* Drawing Canvas Modal */}
-            {isDrawing && (
-                <DrawingCanvas onClose={() => setIsDrawing(false)} onSend={handleDrawingSend} />
+            {isDrawing && <DrawingCanvas onClose={() => setIsDrawing(false)} onSend={handleDrawingSend} />}
+            {isPolling && <PollCreator onClose={() => setIsPolling(false)} onSend={handlePollSend} />}
+
+            {/* Media Preview Modal */}
+            {previewMedia && (
+                <div className="fixed inset-0 z-[60] bg-[#0b141a] flex flex-col animate-in fade-in duration-200">
+                    {/* Header */}
+                    <div className="w-full flex items-center justify-between p-4 z-20 absolute top-0 left-0 bg-gradient-to-b from-black/60 to-transparent">
+                        <button onClick={() => setPreviewMedia(null)} className="p-2 rounded-full hover:bg-white/10 text-white transition-colors">
+                            <X size={24} />
+                        </button>
+                        <div className="flex gap-6 text-white mx-auto md:mr-4">
+                            <button className="p-2 rounded-full hover:bg-white/10" title="Crop"><Crop size={20} /></button>
+                            <button className="p-2 rounded-full hover:bg-white/10" title="Add Text"><Type size={20} /></button>
+                            <button className="p-2 rounded-full hover:bg-white/10" title="Draw"><PenTool size={20} /></button>
+                        </div>
+                    </div>
+
+                    {/* Preview Content */}
+                    <div className="flex-1 flex items-center justify-center relative p-4 md:p-12 overflow-hidden bg-black/90">
+                        {previewMedia.type === 'video' ? (
+                            <video 
+                                src={previewMedia.url} 
+                                controls 
+                                className="max-h-[80vh] max-w-full object-contain shadow-2xl rounded-sm"
+                            />
+                        ) : (
+                            <img 
+                                src={previewMedia.url} 
+                                alt="Preview" 
+                                className="max-h-[80vh] max-w-full object-contain shadow-2xl rounded-sm"
+                            />
+                        )}
+                    </div>
+
+                    {/* Caption & Send */}
+                    <div className="bg-[#0b141a] p-3 w-full border-t border-white/10 z-20">
+                        <div className="max-w-4xl mx-auto flex items-end gap-3 pb-2 md:pb-4">
+                            <div className="flex-1 bg-[#2a3942] rounded-full flex items-center px-4 py-2 border border-transparent focus-within:border-gray-500 transition-colors">
+                                <div className="text-gray-400 mr-3 cursor-pointer hover:text-white"><Plus size={24} className="rotate-45" /></div>
+                                <input 
+                                    type="text" 
+                                    placeholder="Add a caption..." 
+                                    className="flex-1 bg-transparent text-white placeholder:text-gray-400 outline-none text-[15px] min-w-0"
+                                    value={previewCaption}
+                                    onChange={(e) => setPreviewCaption(e.target.value)}
+                                    autoFocus
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSendMedia()}
+                                />
+                                <div className="ml-2 w-7 h-7 rounded-full border-2 border-gray-500 flex items-center justify-center text-gray-500 text-[10px] font-bold cursor-pointer hover:bg-white/10 hover:text-white hover:border-white transition-colors">1</div>
+                            </div>
+                            <button 
+                                onClick={handleSendMedia}
+                                className="w-12 h-12 bg-wa-teal rounded-full flex items-center justify-center text-white shadow-lg hover:brightness-110 active:scale-95 transition-all shrink-0"
+                            >
+                                <Send size={20} className="ml-1" />
+                            </button>
+                        </div>
+                        
+                        {/* Recipient Indicator */}
+                        <div className="max-w-4xl mx-auto flex justify-between items-center px-2 mt-1">
+                             <div className="bg-[#2a3942] rounded-full px-3 py-1 text-gray-300 text-xs cursor-pointer hover:bg-[#374248] flex items-center gap-1 truncate max-w-[200px]">
+                                <span className="truncate">{ctrl.chat.isGroup ? ctrl.chat.groupName : ctrl.contact?.name}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Date Lock Modal */}
@@ -274,7 +494,9 @@ const ChatWindow = () => {
                                                         <span className="italic text-gray-500 flex items-center gap-1 pb-1"><Info size={14} /> {msg.text}</span>
                                                     ) : (
                                                         <>
-                                                            {msg.mediaUrls && msg.mediaUrls.length > 0 ? (
+                                                            {msg.pollData ? (
+                                                                <PollMessage msg={msg} onVote={ctrl.handleVote} currentUserId={ctrl.currentUserId} />
+                                                            ) : msg.mediaUrls && msg.mediaUrls.length > 0 ? (
                                                                 <MediaCarousel mediaUrls={msg.mediaUrls} />
                                                             ) : msg.type === 'video' ? (
                                                                 <VideoMessage src={msg.mediaUrl || ''} poster={msg.mediaUrl} duration={msg.duration} />
@@ -298,6 +520,8 @@ const ChatWindow = () => {
                                                                 <div className="relative">
                                                                     <span className="whitespace-pre-wrap break-words text-[#111b21] dark:text-gray-100">{displayText}</span>
                                                                     
+                                                                    <LinkPreview text={msg.text} />
+
                                                                     {isTranslated && (
                                                                         <div className="mt-2 pt-1 border-t border-black/10 dark:border-white/10 animate-in fade-in duration-300">
                                                                             <div className="flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400 mb-0.5">
@@ -365,6 +589,9 @@ const ChatWindow = () => {
             ) : (
                 <div className="p-2 md:p-3 bg-wa-grayBg dark:bg-wa-dark-header border-t border-wa-border dark:border-wa-dark-border z-10 flex items-center gap-2 relative">
                     
+                    {/* Hidden File Input (Outside of Attach Menu check to keep it mounted) */}
+                    <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} />
+
                     {/* Attachment Menu */}
                     {ctrl.showAttachMenu && (
                         <div className="absolute bottom-20 left-4 bg-white dark:bg-wa-dark-paper rounded-2xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.15)] dark:shadow-black/50 border border-gray-100 dark:border-gray-700 animate-in slide-in-from-bottom-5 fade-in zoom-in-95 duration-200 w-[90%] max-w-[350px] z-50">
@@ -399,18 +626,14 @@ const ChatWindow = () => {
                                     label="Location" 
                                     onClick={() => handleAttachmentSelect('location')}
                                 />
-                                <AttachmentIcon 
-                                    icon={<User size={24} />} 
-                                    color="bg-blue-500" 
-                                    label="Contact" 
-                                    onClick={() => handleAttachmentSelect('contact')}
-                                />
-                                <AttachmentIcon 
-                                    icon={<BarChart2 size={24} />} 
-                                    color="bg-teal-500" 
-                                    label="Poll" 
-                                    onClick={() => handleAttachmentSelect('poll')}
-                                />
+                                {ctrl.chat.isGroup && (
+                                    <AttachmentIcon 
+                                        icon={<BarChart2 size={24} />} 
+                                        color="bg-teal-500" 
+                                        label="Poll" 
+                                        onClick={() => handleAttachmentSelect('poll')}
+                                    />
+                                )}
                                 <AttachmentIcon 
                                     icon={<PenTool size={24} />} 
                                     color="bg-pink-600" 
@@ -418,8 +641,6 @@ const ChatWindow = () => {
                                     onClick={() => handleAttachmentSelect('draw')}
                                 />
                             </div>
-                            {/* Hidden File Input for demo purposes */}
-                            <input type="file" ref={fileInputRef} className="hidden" />
                         </div>
                     )}
 
@@ -436,7 +657,7 @@ const ChatWindow = () => {
                         <Paperclip size={24} />
                     </button>
                     
-                    <div className="flex-1 bg-white dark:bg-wa-dark-input rounded-lg flex items-center px-4 py-2"><input type="text" className="w-full bg-transparent outline-none text-[#111b21] dark:text-gray-100 placeholder:text-[#667781] dark:placeholder:text-gray-500 text-[15px]" placeholder="Type a message" value={ctrl.inputText} onChange={(e) => ctrl.setInputText(e.target.value)} onKeyDown={ctrl.handleKeyDown} /></div>
+                    <div className="flex-1 bg-white dark:bg-wa-dark-input rounded-lg flex items-center px-4 py-2"><input type="text" className="w-full bg-transparent outline-none text-[#111b21] dark:text-gray-100 placeholder:text-[#667781] dark:placeholder:text-gray-500 text-[15px]" placeholder="Type a message" value={ctrl.inputText} onChange={ctrl.setInputText} onKeyDown={ctrl.handleKeyDown} /></div>
                     {ctrl.inputText.trim() ? (
                         <button onClick={() => ctrl.handleSendMessage()} className="p-3 bg-wa-teal text-white rounded-full shadow-md hover:scale-105 transition-transform"><Send size={20} className="ml-0.5" /></button> 
                     ) : (

@@ -8,8 +8,8 @@ import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 const Login = () => {
     const navigate = useNavigate();
     const { login } = useApp();
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const [email, setEmail] = useState('demo@aura.com'); // Static testing data
+    const [password, setPassword] = useState('password123'); // Static testing data
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
