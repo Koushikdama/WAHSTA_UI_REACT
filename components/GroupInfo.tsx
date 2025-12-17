@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User as UserIcon, Bell, Lock, Search, MoreVertical, Star, ThumbsUp, Trash2, LogOut, Pin, Palette, Check, Grid, Image as ImageIcon, Video as VideoIcon, FileText, BarChart2, ChevronRight, Download, Shield, EyeOff, ChevronDown, Unlock, CircleDashed, Plus, Settings, Ban, UserPlus, QrCode, X, Phone, Edit2, Link, Music, Clock } from 'lucide-react';
+import { ArrowLeft, User as UserIcon, Bell, Lock, Search, MoreVertical, Star, ThumbsUp, Trash2, LogOut, Pin, Palette, Check, Grid, Image as ImageIcon, Video as VideoIcon, FileText, BarChart2, ChevronRight, Download, Shield, EyeOff, ChevronDown, Unlock, CircleDashed, Plus, Settings, Ban, UserPlus, QrCode, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatTimestamp } from '../utils/formatTime';
 import StatusViewer from './StatusViewer';
@@ -243,11 +243,6 @@ const GroupInfo = () => {
 
   // --- Render Helpers ---
 
-  // Dynamic Background Style for Cards
-  const cardBgClass = chatSettings.contactInfoBackgroundImage 
-    ? 'bg-white/30 dark:bg-black/40 backdrop-blur-md border border-white/20' 
-    : 'bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm shadow-sm';
-
   const renderMediaContent = (isPrivateContext: boolean) => {
       if (!isPrivateContext && chat.isLocked) {
           return (
@@ -427,7 +422,7 @@ const GroupInfo = () => {
   };
 
   const renderMediaSection = (isPrivateContext: boolean) => (
-      <div className={`${cardBgClass} mb-3 transition-colors overflow-hidden rounded-lg`}>
+      <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm mb-3 shadow-sm transition-colors overflow-hidden rounded-lg">
            <div 
                 className="px-4 py-3 flex items-center justify-between border-b border-gray-100 dark:border-gray-800 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50"
                 onClick={() => setIsMediaSectionExpanded(!isMediaSectionExpanded)}
@@ -599,17 +594,20 @@ const GroupInfo = () => {
                                    <p className="text-[14px] text-[#667781] dark:text-gray-500 truncate">{user.about}</p>
                                </div>
                            </div>
-                       );
+                       )
                    })}
+                   {availableUsers.length === 0 && (
+                       <div className="p-8 text-center text-gray-500 text-sm">No contacts available to add.</div>
+                   )}
               </div>
 
               {selectedToAdd.size > 0 && (
-                  <div className="absolute bottom-0 w-full p-4 bg-white/90 dark:bg-wa-dark-bg/90 backdrop-blur-sm border-t border-wa-border dark:border-wa-dark-border flex justify-center">
+                  <div className="absolute bottom-6 right-6 z-20">
                       <button 
                           onClick={handleAddParticipants}
-                          className="bg-wa-teal text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all"
+                          className="w-14 h-14 bg-wa-teal rounded-full shadow-lg flex items-center justify-center text-white hover:brightness-110 active:scale-95 transition-all"
                       >
-                          <Check size={24} />
+                          <Check size={24} strokeWidth={3} />
                       </button>
                   </div>
               )}
@@ -617,282 +615,560 @@ const GroupInfo = () => {
       );
   }
 
-  // --- MAIN RENDER ---
+  // --- PERMISSIONS SCREEN ---
+  if (showPermissions) {
+      return (
+          <div className="flex flex-col h-full bg-[#f0f2f5] dark:bg-[#111b21] animate-in slide-in-from-right duration-200">
+              <div className="h-[60px] bg-wa-teal dark:bg-wa-dark-header flex items-center px-4 shrink-0 shadow-sm text-white">
+                  <button onClick={() => setShowPermissions(false)} className="mr-3 p-1 rounded-full active:bg-white/10">
+                      <ArrowLeft size={24} />
+                  </button>
+                  <h2 className="text-xl font-medium">Group permissions</h2>
+              </div>
+              <div className="p-4 flex-col gap-4">
+                  <div className="bg-white dark:bg-wa-dark-header rounded-lg shadow-sm p-4">
+                      <div className="flex justify-between items-center mb-1">
+                          <h3 className="text-base text-[#111b21] dark:text-gray-100">Edit group info</h3>
+                          <div className={`text-xs px-2 py-1 rounded bg-gray-100 dark:bg-white/10 ${isAdmin ? 'text-green-600' : 'text-gray-500'}`}>
+                              {chat.groupSettings?.editInfo === 'all' ? 'All participants' : 'Only admins'}
+                          </div>
+                      </div>
+                      <p className="text-xs text-[#667781] dark:text-gray-500 mb-4">Choose who can change the group's subject, icon, and description.</p>
+                      
+                      {isAdmin && (
+                          <div className="flex gap-2">
+                              <button onClick={() => updateGroupSettings(chat.id, { editInfo: 'all' })} className={`flex-1 py-2 text-sm rounded border ${chat.groupSettings?.editInfo === 'all' ? 'border-wa-teal text-wa-teal bg-green-50 dark:bg-green-900/10' : 'border-gray-300 text-gray-500'}`}>All</button>
+                              <button onClick={() => updateGroupSettings(chat.id, { editInfo: 'admins' })} className={`flex-1 py-2 text-sm rounded border ${chat.groupSettings?.editInfo === 'admins' ? 'border-wa-teal text-wa-teal bg-green-50 dark:bg-green-900/10' : 'border-gray-300 text-gray-500'}`}>Admins</button>
+                          </div>
+                      )}
+                  </div>
+
+                  <div className="bg-white dark:bg-wa-dark-header rounded-lg shadow-sm p-4 mt-4">
+                      <div className="flex justify-between items-center mb-1">
+                          <h3 className="text-base text-[#111b21] dark:text-gray-100">Send messages</h3>
+                          <div className={`text-xs px-2 py-1 rounded bg-gray-100 dark:bg-white/10 ${isAdmin ? 'text-green-600' : 'text-gray-500'}`}>
+                              {chat.groupSettings?.sendMessages === 'all' ? 'All participants' : 'Only admins'}
+                          </div>
+                      </div>
+                      <p className="text-xs text-[#667781] dark:text-gray-500 mb-4">Choose who can send messages to this group.</p>
+                      
+                      {isAdmin && (
+                          <div className="flex gap-2">
+                              <button onClick={() => updateGroupSettings(chat.id, { sendMessages: 'all' })} className={`flex-1 py-2 text-sm rounded border ${chat.groupSettings?.sendMessages === 'all' ? 'border-wa-teal text-wa-teal bg-green-50 dark:bg-green-900/10' : 'border-gray-300 text-gray-500'}`}>All</button>
+                              <button onClick={() => updateGroupSettings(chat.id, { sendMessages: 'admins' })} className={`flex-1 py-2 text-sm rounded border ${chat.groupSettings?.sendMessages === 'admins' ? 'border-wa-teal text-wa-teal bg-green-50 dark:bg-green-900/10' : 'border-gray-300 text-gray-500'}`}>Admins</button>
+                          </div>
+                      )}
+                  </div>
+
+                  <div className="bg-white dark:bg-wa-dark-header rounded-lg shadow-sm p-4 mt-4">
+                      <div className="flex justify-between items-center mb-1">
+                          <h3 className="text-base text-[#111b21] dark:text-gray-100">Add other participants</h3>
+                          <div className={`text-xs px-2 py-1 rounded bg-gray-100 dark:bg-white/10 ${isAdmin ? 'text-green-600' : 'text-gray-500'}`}>
+                              {chat.groupSettings?.addMembers === 'all' ? 'All participants' : 'Only admins'}
+                          </div>
+                      </div>
+                      <p className="text-xs text-[#667781] dark:text-gray-500 mb-4">Choose who can add other participants to this group.</p>
+                      
+                      {isAdmin && (
+                          <div className="flex gap-2">
+                              <button onClick={() => updateGroupSettings(chat.id, { addMembers: 'all' })} className={`flex-1 py-2 text-sm rounded border ${chat.groupSettings?.addMembers === 'all' ? 'border-wa-teal text-wa-teal bg-green-50 dark:bg-green-900/10' : 'border-gray-300 text-gray-500'}`}>All</button>
+                              <button onClick={() => updateGroupSettings(chat.id, { addMembers: 'admins' })} className={`flex-1 py-2 text-sm rounded border ${chat.groupSettings?.addMembers === 'admins' ? 'border-wa-teal text-wa-teal bg-green-50 dark:bg-green-900/10' : 'border-gray-300 text-gray-500'}`}>Admins</button>
+                          </div>
+                      )}
+                  </div>
+
+                  <div className="bg-white dark:bg-wa-dark-header rounded-lg shadow-sm p-4 mt-4 flex justify-between items-center">
+                      <div className="flex-1 mr-4">
+                          <h3 className="text-base text-[#111b21] dark:text-gray-100 mb-1">Approve new participants</h3>
+                          <p className="text-xs text-[#667781] dark:text-gray-500">When turned on, admins must approve anyone who wants to join the group.</p>
+                      </div>
+                      <div 
+                          onClick={() => isAdmin && updateGroupSettings(chat.id, { approveMembers: !chat.groupSettings?.approveMembers })}
+                          className={`w-10 h-6 rounded-full p-1 transition-colors cursor-pointer shrink-0 ${chat.groupSettings?.approveMembers ? 'bg-wa-teal' : 'bg-gray-300 dark:bg-gray-600'}`}
+                      >
+                          <div className={`bg-white w-4 h-4 rounded-full shadow-sm transition-transform ${chat.groupSettings?.approveMembers ? 'translate-x-4' : ''}`}></div>
+                      </div>
+                  </div>
+
+                  {isOwner && (
+                      <div className="bg-white dark:bg-wa-dark-header rounded-lg shadow-sm mt-4 overflow-hidden">
+                          <div 
+                            className="p-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5"
+                            onClick={() => setExpandedAdmins(!expandedAdmins)}
+                          >
+                              <h3 className="text-base text-[#111b21] dark:text-gray-100">Edit group admins</h3>
+                              <ChevronDown size={20} className={`transition-transform ${expandedAdmins ? 'rotate-180' : ''}`} />
+                          </div>
+                          
+                          {expandedAdmins && (
+                              <div className="border-t border-gray-100 dark:border-gray-700 max-h-60 overflow-y-auto">
+                                  {chat.groupParticipants?.filter(pid => pid !== currentUserId).map(pid => {
+                                      const u = users[pid];
+                                      const role = chat.groupRoles?.[pid];
+                                      return (
+                                          <div key={pid} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-white/5">
+                                              <div className="flex items-center gap-3">
+                                                  <img src={u.avatar} className="w-8 h-8 rounded-full" alt="" />
+                                                  <span className="text-sm font-medium dark:text-gray-200">{u.name}</span>
+                                              </div>
+                                              <button 
+                                                onClick={() => handleToggleAdmin(pid)}
+                                                className={`text-xs px-3 py-1.5 rounded-full border ${role === 'admin' ? 'border-red-200 text-red-500 hover:bg-red-50' : 'border-green-200 text-green-600 hover:bg-green-50'}`}
+                                              >
+                                                  {role === 'admin' ? 'Dismiss' : 'Make Admin'}
+                                              </button>
+                                          </div>
+                                      )
+                                  })}
+                              </div>
+                          )}
+                      </div>
+                  )}
+              </div>
+          </div>
+      );
+  }
 
   return (
-    <div className="flex flex-col h-full bg-[#f0f2f5] dark:bg-[#0b141a] overflow-hidden relative">
-      {/* Auth Modal */}
-      {showAuthModal && createPortal(
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-wa-dark-paper rounded-lg shadow-xl w-full max-w-xs p-6 flex flex-col items-center">
-                <div className="w-12 h-12 bg-wa-teal rounded-full flex items-center justify-center mb-4 text-white">
-                    <Lock size={24} />
-                </div>
-                <h3 className="text-lg font-medium text-[#111b21] dark:text-gray-100 mb-2">
-                    {authMode === 'chat_lock' ? 'Chat Lock' : 'Private Tab'}
-                </h3>
-                <p className="text-sm text-[#667781] dark:text-gray-400 mb-6 text-center">
-                    Enter PIN to {authMode === 'chat_lock' ? (chat.isLocked ? 'unlock this chat' : 'lock this chat') : 'access private messages'}
-                </p>
-                
-                <input 
-                    type="password" 
-                    maxLength={4}
-                    value={authPin}
-                    onChange={(e) => {
-                        setAuthPin(e.target.value);
-                        setAuthError('');
-                    }}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAuthVerify()}
-                    className="w-full text-center text-2xl tracking-[0.5em] font-medium py-2 border-b-2 border-wa-teal bg-transparent outline-none mb-2 text-[#111b21] dark:text-gray-100 placeholder-transparent"
-                    placeholder="****"
-                    autoFocus
-                />
-                
-                {authError && <p className="text-red-500 text-xs mb-4">{authError}</p>}
+    <div 
+        className={`flex flex-col h-full overflow-y-auto relative ${!chatSettings.contactInfoBackgroundImage ? 'bg-[#f0f2f5] dark:bg-[#0b141a]' : ''}`}
+        style={containerStyle}
+    >
+      {/* Viewer Portal */}
+      {viewerState.isOpen && (
+          <StatusViewer 
+            updates={groupStatuses}
+            initialIndex={viewerState.startIndex}
+            onClose={() => setViewerState({ isOpen: false, startIndex: 0 })}
+          />
+      )}
 
-                <div className="flex gap-3 w-full mt-4">
-                    <button onClick={() => setShowAuthModal(false)} className="flex-1 py-2 text-wa-teal font-medium hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover rounded-full transition-colors">
-                        Cancel
-                    </button>
-                    <button onClick={handleAuthVerify} className="flex-1 py-2 bg-wa-teal text-white font-medium rounded-full shadow-sm hover:shadow-md transition-all">
-                        {authMode === 'chat_lock' && chat.isLocked ? 'Unlock' : 'Verify'}
-                    </button>
-                </div>
-            </div>
-        </div>,
-        document.body
+      {/* AUTH MODAL */}
+      {showAuthModal && createPortal(
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+              <div className="bg-white dark:bg-wa-dark-paper rounded-lg shadow-xl w-full max-w-xs p-6 flex flex-col items-center">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 text-white ${authMode === 'private_tab' ? 'bg-blue-500' : 'bg-wa-teal'}`}>
+                      {authMode === 'private_tab' ? <Shield size={24} /> : <Lock size={24} />}
+                  </div>
+                  <h3 className="text-lg font-medium text-[#111b21] dark:text-gray-100 mb-2">
+                      {authMode === 'private_tab' ? 'Private Access' : (chat.isLocked ? 'Unlock Chat' : 'Lock Chat')}
+                  </h3>
+                  <p className="text-sm text-[#667781] dark:text-gray-400 mb-6 text-center">
+                      Enter {authMode === 'private_tab' ? 'App Lock (1234)' : 'Chat Lock (0000)'} PIN
+                  </p>
+                  
+                  <input 
+                      type="password" 
+                      maxLength={4}
+                      value={authPin}
+                      onChange={(e) => {
+                          setAuthPin(e.target.value);
+                          setAuthError('');
+                      }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAuthVerify()}
+                      className="w-full text-center text-2xl tracking-[0.5em] font-medium py-2 border-b-2 border-wa-teal bg-transparent outline-none mb-2 text-[#111b21] dark:text-gray-100 placeholder-transparent"
+                      placeholder="****"
+                      autoFocus
+                  />
+                  
+                  {authError && <p className="text-red-500 text-xs mb-4">{authError}</p>}
+
+                  <div className="flex gap-3 w-full mt-4">
+                      <button onClick={() => setShowAuthModal(false)} className="flex-1 py-2 text-wa-teal font-medium hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover rounded-full transition-colors">
+                          Cancel
+                      </button>
+                      <button onClick={handleAuthVerify} className="flex-1 py-2 bg-wa-teal text-white font-medium rounded-full shadow-sm hover:shadow-md transition-all">
+                          Verify
+                      </button>
+                  </div>
+              </div>
+          </div>,
+          document.body
+      )}
+
+      {/* When bg image is set, add overlay */}
+      {chatSettings.contactInfoBackgroundImage && (
+          <div className="fixed inset-0 bg-white/40 dark:bg-black/40 pointer-events-none z-0 backdrop-blur-[2px]"></div>
       )}
 
       {/* Header */}
-      <div className="h-[60px] bg-wa-grayBg dark:bg-wa-dark-header flex items-center px-4 shrink-0 shadow-sm transition-colors sticky top-0 z-20">
-          <button onClick={() => navigate(`/chat/${chatId}`)} className="mr-3 p-1 rounded-full active:bg-black/10 text-[#54656f] dark:text-gray-400">
-              <ArrowLeft size={24} />
-          </button>
-          <div className="flex-1">
-              <h2 className="text-xl font-medium text-[#111b21] dark:text-gray-100">
-                  {isGroup ? 'Group Info' : 'Contact Info'}
-              </h2>
-          </div>
-          <button ref={menuButtonRef} onClick={handleMenuToggle} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#54656f] dark:text-gray-400">
-              <MoreVertical size={20} />
-          </button>
-          
-          {/* Context Menu */}
-          {isMenuOpen && (
-              <>
-                  <div className="fixed inset-0 z-30" onClick={() => setIsMenuOpen(false)}></div>
-                  <div 
-                      style={{ top: menuPos.top, right: menuPos.right }}
-                      className="absolute w-48 bg-white dark:bg-wa-dark-paper rounded-lg shadow-xl border border-wa-border dark:border-gray-700 z-40 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right"
-                  >
-                      {isGroup && isAdmin && (
-                          <button className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-wa-dark-hover text-[#111b21] dark:text-gray-100 text-[15px]">Change Subject</button>
-                      )}
-                      <button className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-wa-dark-hover text-[#111b21] dark:text-gray-100 text-[15px]">Export Chat</button>
-                      {isAdmin && <button className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-wa-dark-hover text-[#111b21] dark:text-gray-100 text-[15px]">Group Settings</button>}
-                  </div>
-              </>
-          )}
+      <div className="h-[60px] bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-md flex items-center justify-between px-4 shrink-0 shadow-sm sticky top-0 z-10 transition-colors">
+        <div className="flex items-center gap-3">
+            <button onClick={() => navigate(`/chat/${chatId}`)} className="text-wa-gray dark:text-gray-400">
+                <ArrowLeft size={24} />
+            </button>
+            <h2 className="text-lg text-[#111b21] dark:text-gray-100 font-medium">
+                {isGroup ? 'Group Info' : 'User Info'}
+            </h2>
+        </div>
+        
+        {/* Settings Menu for Groups */}
+        {isGroup && (
+            <div className="relative">
+                <button 
+                    ref={menuButtonRef}
+                    onClick={handleMenuToggle} 
+                    className="p-2 -mr-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-wa-gray dark:text-gray-400 transition-colors"
+                >
+                    <MoreVertical size={22} />
+                </button>
+                {isMenuOpen && createPortal(
+                    <>
+                        <div className="fixed inset-0 z-[60]" onClick={() => setIsMenuOpen(false)}></div>
+                        <div 
+                            className="fixed w-48 bg-white dark:bg-wa-dark-paper rounded-lg shadow-xl border border-wa-border dark:border-gray-700 z-[61] py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right"
+                            style={{ top: menuPos.top, right: menuPos.right }}
+                        >
+                            <button onClick={() => { setIsMenuOpen(false); setShowPermissions(true); }} className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-wa-dark-hover text-[#111b21] dark:text-gray-100 text-[15px]">Group permissions</button>
+                        </div>
+                    </>,
+                    document.body
+                )}
+            </div>
+        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-10" style={containerStyle}>
-          {/* Profile Header */}
-          <div className={`flex flex-col items-center py-6 mb-2 text-center ${cardBgClass}`}>
-              <div className="relative group mb-4">
-                  <img src={avatar} alt="Profile" className="w-32 h-32 rounded-full object-cover shadow-sm" />
-                  <div className="absolute inset-0 bg-black/20 rounded-full hidden group-hover:flex items-center justify-center cursor-pointer">
-                      <div className="text-white text-xs font-medium uppercase text-center px-2">View Photo</div>
-                  </div>
-              </div>
-              <h2 className="text-2xl font-medium text-[#111b21] dark:text-gray-100 mb-1">{title}</h2>
-              <p className="text-base text-[#667781] dark:text-gray-400">{subtitle}</p>
+      <div className="flex-1 pb-10 relative z-10">
+          <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm flex flex-col items-center py-6 mb-3 shadow-sm transition-colors rounded-b-lg">
+               
+               {/* 3D Flip Profile Container */}
+               <div className="relative w-28 h-28 mb-4 group cursor-pointer perspective-[1000px]">
+                    <div className="relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)]">
+                        {/* Front Face - Profile Picture */}
+                        <div className="absolute inset-0 w-full h-full [backface-visibility:hidden]">
+                            <img 
+                                src={avatar} 
+                                alt="Avatar" 
+                                className="w-full h-full rounded-full object-cover shadow-sm ring-2 ring-white dark:ring-wa-dark-bg" 
+                            />
+                        </div>
+                        
+                        {/* Back Face - QR Code */}
+                        <div className="absolute inset-0 w-full h-full rounded-full bg-white flex items-center justify-center [transform:rotateY(180deg)] [backface-visibility:hidden] shadow-sm ring-2 ring-wa-teal overflow-hidden">
+                            <img 
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${chatId}`} 
+                                alt="QR Code" 
+                                className="w-3/4 h-3/4 object-contain opacity-90"
+                            />
+                        </div>
+                    </div>
+                    {/* Small visual cue for flip interaction */}
+                    <div className="absolute bottom-0 right-0 bg-white dark:bg-wa-dark-paper rounded-full p-1 shadow-md opacity-80 group-hover:opacity-0 transition-opacity">
+                        <QrCode size={12} className="text-wa-teal" />
+                    </div>
+               </div>
 
-              {/* Action Buttons */}
-              <div className="flex gap-4 mt-6 w-full justify-center px-4">
-                  <div className="flex flex-col items-center gap-1 cursor-pointer group">
-                      <div className="w-10 h-10 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-center text-wa-teal group-hover:bg-gray-50 dark:group-hover:bg-white/5 transition-colors shadow-sm">
-                          <Phone size={20} />
-                      </div>
-                      <span className="text-xs text-wa-teal font-medium">Audio</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-1 cursor-pointer group">
-                      <div className="w-10 h-10 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-center text-wa-teal group-hover:bg-gray-50 dark:group-hover:bg-white/5 transition-colors shadow-sm">
-                          <VideoIcon size={20} />
-                      </div>
-                      <span className="text-xs text-wa-teal font-medium">Video</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-1 cursor-pointer group">
-                      <div className="w-10 h-10 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-center text-wa-teal group-hover:bg-gray-50 dark:group-hover:bg-white/5 transition-colors shadow-sm">
-                          <Search size={20} />
-                      </div>
-                      <span className="text-xs text-wa-teal font-medium">Search</span>
-                  </div>
-              </div>
+               <h1 className="text-2xl text-[#111b21] dark:text-gray-100 font-normal mb-1">{title}</h1>
+               <p className="text-[#667781] dark:text-gray-500 text-base mb-4">{subtitle}</p>
+               
+               {/* Public / Private Toggle */}
+               <div className="flex p-1 bg-gray-100 dark:bg-wa-dark-paper rounded-lg w-64 shadow-inner">
+                   <button 
+                       onClick={() => handleTabChange('public')}
+                       className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${topTab === 'public' ? 'bg-white dark:bg-wa-dark-header text-wa-teal shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+                   >
+                       Public
+                   </button>
+                   <button 
+                       onClick={() => handleTabChange('private')}
+                       className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-1.5 ${topTab === 'private' ? 'bg-white dark:bg-wa-dark-header text-wa-teal shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+                   >
+                       Private
+                       {!isPrivateUnlocked && <Lock size={12} />}
+                   </button>
+               </div>
           </div>
 
-          {/* About / Description */}
-          {chat.isGroup ? (
-              <div className={`${cardBgClass} mb-3 px-4 py-3`}>
-                  <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm text-[#111b21] dark:text-gray-100 font-medium">Group Description</span>
-                      {isAdmin && <button className="p-1 text-wa-teal"><Edit2 size={16} /></button>}
-                  </div>
-                  <p className="text-sm text-[#54656f] dark:text-gray-400">Welcome to the group!</p>
-                  <p className="text-xs text-[#667781] dark:text-gray-500 mt-2">Created by {users[chat.groupParticipants?.[0] || '']?.name}, {new Date(chat.timestamp).toLocaleDateString()}</p>
-              </div>
-          ) : (
-              <div className={`${cardBgClass} mb-3 px-4 py-3`}>
-                  <h3 className="text-base text-[#111b21] dark:text-gray-100 mb-1">{contact?.about || "Hey there! I am using WhatsApp."}</h3>
-                  <p className="text-xs text-[#667781] dark:text-gray-500">{new Date().toLocaleDateString()}</p>
-              </div>
+          {/* PUBLIC TAB CONTENT */}
+          {topTab === 'public' && (
+              <>
+                <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm mb-3 shadow-sm transition-colors rounded-lg">
+                    <div className="flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50">
+                        <div className="w-6 flex justify-center text-wa-gray dark:text-gray-400"><Bell size={22} /></div>
+                        <div className="flex-1">
+                            <h3 className="text-base text-[#111b21] dark:text-gray-100">Notifications</h3>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50">
+                        <div className="w-6 flex justify-center text-wa-gray dark:text-gray-400"><Search size={22} /></div>
+                        <div className="flex-1">
+                            <h3 className="text-base text-[#111b21] dark:text-gray-100">Search messages</h3>
+                        </div>
+                    </div>
+                </div>
+                
+                {renderMediaSection(false)}
+
+                {/* GROUP STATUS SECTION - ONLY VISIBLE FOR GROUPS */}
+                {isGroup && (
+                    <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm mb-3 shadow-sm transition-colors overflow-hidden rounded-lg">
+                        <div 
+                            className="px-4 py-3 flex items-center justify-between border-b border-gray-100 dark:border-gray-800 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50"
+                            onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                        >
+                            <div className="flex flex-col">
+                                <h3 className="text-sm text-[#667781] dark:text-gray-400 font-medium flex items-center gap-2">
+                                    Group Status
+                                    <ChevronDown size={14} className={`transition-transform duration-200 ${isStatusDropdownOpen ? 'rotate-180' : ''}`} />
+                                </h3>
+                                <p className="text-[10px] text-gray-400">
+                                    {groupStatuses.length} updates
+                                </p>
+                            </div>
+                            <CircleDashed size={20} className="text-[#667781] dark:text-gray-400" />
+                        </div>
+
+                        {isStatusDropdownOpen && (
+                            <div className="p-4 overflow-x-auto no-scrollbar flex gap-4 animate-in slide-in-from-top-2 duration-200">
+                                {/* Add Status Button */}
+                                <div className="flex flex-col items-center gap-1 cursor-pointer shrink-0" onClick={() => statusFileInputRef.current?.click()}>
+                                    <div className="relative w-14 h-14">
+                                        <img src={currentUser.avatar} className="w-full h-full rounded-full object-cover opacity-80" alt="Me" />
+                                        <div className="absolute bottom-0 right-0 bg-wa-teal text-white rounded-full p-1 border-2 border-white dark:border-wa-dark-bg">
+                                            <Plus size={12} strokeWidth={3} />
+                                        </div>
+                                    </div>
+                                    <span className="text-xs text-[#111b21] dark:text-gray-100 font-medium mt-1">Add</span>
+                                </div>
+                                
+                                <input type="file" ref={statusFileInputRef} className="hidden" accept="image/*,video/*" onChange={handleStatusUpload} />
+
+                                {/* List Statuses */}
+                                {groupStatuses.map((status, idx) => {
+                                    const u = users[status.userId] || (status.userId === currentUserId ? currentUser : null);
+                                    if (!u) return null;
+                                    return (
+                                        <div key={status.id} className="flex flex-col items-center gap-1 cursor-pointer shrink-0" onClick={() => setViewerState({ isOpen: true, startIndex: idx })}>
+                                            <div className="w-14 h-14 rounded-full p-[2px] border-2 border-wa-teal">
+                                                <img src={u.avatar} className="w-full h-full rounded-full object-cover" alt={u.name} />
+                                            </div>
+                                            <span className="text-xs text-[#111b21] dark:text-gray-100 font-medium mt-1 w-16 truncate text-center">{u.name.split(' ')[0]}</span>
+                                        </div>
+                                    )
+                                })}
+                                
+                                {groupStatuses.length === 0 && (
+                                    <div className="flex items-center justify-center text-xs text-gray-400 italic px-4">
+                                        No recent updates
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm mb-3 shadow-sm transition-colors px-6 py-6 rounded-lg">
+                    {/* Theme Selectors */}
+                    <div className="mb-8 mt-2">
+                        <div className="flex items-center gap-4 mb-4">
+                            <div className="w-6 flex justify-center text-wa-gray dark:text-gray-400">
+                                <Palette size={22} />
+                            </div>
+                            <h3 className="text-base text-[#111b21] dark:text-gray-100 font-medium">My Message Theme</h3>
+                        </div>
+                        <div className="flex gap-4 pl-10 overflow-x-auto no-scrollbar pb-2 -mr-6 pr-6">
+                            {THEME_COLORS.map((color) => {
+                                const isSelected = (chat.themeColor || '') === color.value;
+                                return (
+                                    <button 
+                                        key={color.name}
+                                        onClick={() => chatId && updateChatTheme(chatId, color.value, 'outgoing')}
+                                        className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center relative shadow-sm transition-transform hover:scale-105 ${isSelected ? 'border-2 border-wa-teal' : 'border-2 border-gray-200 dark:border-gray-600'}`}
+                                        style={{ backgroundColor: color.value || '#D9FDD3' }} 
+                                        title={color.name}
+                                    >
+                                        {isSelected && <Check size={16} strokeWidth={3} className="text-black/60" />}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="mb-8">
+                        <div className="flex items-center gap-4 mb-4">
+                            <div className="w-6 flex justify-center text-wa-gray dark:text-gray-400">
+                                <Palette size={22} />
+                            </div>
+                            <h3 className="text-base text-[#111b21] dark:text-gray-100 font-medium">Sender Message Theme</h3>
+                        </div>
+                        <div className="flex gap-4 pl-10 overflow-x-auto no-scrollbar pb-2 -mr-6 pr-6">
+                            {THEME_COLORS.map((color) => {
+                                const isSelected = (chat.incomingThemeColor || '') === color.value;
+                                return (
+                                    <button 
+                                        key={color.name}
+                                        onClick={() => chatId && updateChatTheme(chatId, color.value, 'incoming')}
+                                        className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center relative shadow-sm transition-transform hover:scale-105 ${isSelected ? 'border-2 border-wa-teal' : 'border-2 border-gray-200 dark:border-gray-600'}`}
+                                        style={{ backgroundColor: color.value || '#FFFFFF' }} 
+                                        title={color.name}
+                                    >
+                                        {isSelected && <Check size={16} strokeWidth={3} className="text-black/60" />}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 cursor-pointer py-2" onClick={handleChatLockClick}>
+                        <div className="w-6 flex justify-center text-wa-gray dark:text-gray-400"><Lock size={22} /></div>
+                        <div className="flex-1">
+                            <h3 className="text-base text-[#111b21] dark:text-gray-100">Chat Lock</h3>
+                            <p className="text-xs text-[#667781] dark:text-gray-500">Lock and hide this chat in Archive</p>
+                        </div>
+                        <div className={`w-10 h-6 rounded-full p-1 transition-colors ${chat.isLocked ? 'bg-wa-teal' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                            <div className={`bg-white w-4 h-4 rounded-full shadow-sm transition-transform ${chat.isLocked ? 'translate-x-4' : ''}`}></div>
+                        </div>
+                    </div>
+                </div>
+
+                {pinnedMessages.length > 0 && (
+                    <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm mb-3 shadow-sm transition-colors rounded-lg overflow-hidden">
+                        <div className="px-6 py-3 text-sm text-wa-teal dark:text-wa-teal font-medium uppercase bg-white/50 dark:bg-black/10">
+                            {pinnedMessages.length} Pinned Messages
+                        </div>
+                        {pinnedMessages.map(msg => (
+                            <div key={msg.id} className="px-6 py-3 hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 cursor-pointer border-t border-wa-border dark:border-wa-dark-border">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-xs font-bold text-wa-gray dark:text-gray-400">
+                                        {msg.senderId === currentUserId ? 'You' : users[msg.senderId]?.name}
+                                    </span>
+                                    <span className="text-xs text-wa-gray dark:text-gray-500">
+                                        {formatTimestamp(msg.timestamp)}
+                                    </span>
+                                </div>
+                                <p className="text-sm text-[#111b21] dark:text-gray-200 line-clamp-2">{msg.text}</p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {!isGroup && contact?.about && (
+                    <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm mb-3 shadow-sm px-6 py-4 transition-colors rounded-lg">
+                        <h3 className="text-sm text-wa-teal dark:text-wa-teal font-medium mb-1">About</h3>
+                        <p className="text-base text-[#111b21] dark:text-gray-100">{contact.about}</p>
+                    </div>
+                )}
+
+                {isGroup && (
+                    <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm mb-3 shadow-sm transition-colors rounded-lg overflow-hidden">
+                        <div className="px-6 py-3 text-sm text-[#667781] dark:text-gray-400 bg-white/50 dark:bg-black/10">
+                            {chat.groupParticipants?.length} participants
+                        </div>
+                        
+                        {canAddParticipants && (
+                            <div 
+                                className="flex items-center gap-4 px-6 py-3 hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 cursor-pointer"
+                                onClick={() => setShowAddParticipants(true)}
+                            >
+                                <div className="w-10 h-10 rounded-full bg-wa-teal flex items-center justify-center text-white shrink-0">
+                                    <UserPlus size={22} />
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="text-base text-[#111b21] dark:text-gray-100">Add participants</h3>
+                                </div>
+                            </div>
+                        )}
+
+                        {chat.groupParticipants?.map(pid => {
+                            const user = users[pid] || (pid === currentUserId ? currentUser : null);
+                            if (!user) return null;
+                            const role = chat.groupRoles?.[pid];
+                            
+                            return (
+                                <div key={pid} className="flex items-center gap-4 px-6 py-3 hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 cursor-pointer relative group">
+                                    <img src={user.avatar} alt="" className="w-10 h-10 rounded-full" />
+                                    <div className="flex-1">
+                                        <div className="flex justify-between items-center">
+                                            <h3 className="text-base text-[#111b21] dark:text-gray-100">
+                                                {user.name} {pid === currentUserId && '(You)'}
+                                            </h3>
+                                            {role && role !== 'member' && (
+                                                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${role === 'owner' ? 'border-blue-200 text-blue-600 bg-blue-50' : 'border-green-200 text-green-600 bg-green-50'}`}>
+                                                    {role === 'owner' ? 'Group Creator' : 'Group Admin'}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-[#667781] dark:text-gray-500">{user.about}</p>
+                                    </div>
+                                    
+                                    {/* Inline Admin Action (Owner only) */}
+                                    {isOwner && pid !== currentUserId && (
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); handleToggleAdmin(pid); }}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 hidden group-hover:flex px-3 py-1 bg-white dark:bg-wa-dark-paper shadow-sm rounded-full text-xs font-medium border border-gray-200 dark:border-gray-700"
+                                        >
+                                            {role === 'admin' ? 'Dismiss Admin' : 'Make Admin'}
+                                        </button>
+                                    )}
+                                </div>
+                            )
+                        })}
+                    </div>
+                )}
+
+                <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm shadow-sm transition-colors rounded-lg overflow-hidden">
+                    {/* Exit Group (Only for groups) */}
+                    {isGroup && (
+                        <div className="flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 text-red-500">
+                            <div className="w-6 flex justify-center"><LogOut size={22} /></div>
+                            <h3 className="text-base">Exit group</h3>
+                        </div>
+                    )}
+                    
+                    {/* Report */}
+                    <div className="flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 text-red-500">
+                        <div className="w-6 flex justify-center"><Trash2 size={22} /></div>
+                        <h3 className="text-base">Report {isGroup ? 'group' : 'user'}</h3>
+                    </div>
+
+                    {/* Block (Only for users) */}
+                    {!isGroup && (
+                        <div className="flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 text-red-500">
+                            <div className="w-6 flex justify-center"><Ban size={22} /></div>
+                            <h3 className="text-base">Block {contact?.name || 'user'}</h3>
+                        </div>
+                    )}
+                </div>
+              </>
           )}
 
-          {/* Media Section */}
-          {renderMediaSection(false)}
-
-          {/* Settings Section */}
-          <div className={`${cardBgClass} mb-3`}>
-              <div className="px-4 py-4 flex items-center justify-between cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 border-b border-gray-100 dark:border-gray-800">
-                  <div className="flex items-center gap-4">
-                      <div className="text-[#667781] dark:text-gray-400"><Bell size={20} /></div>
-                      <div className="flex flex-col">
-                          <span className="text-base text-[#111b21] dark:text-gray-100">Mute notifications</span>
-                      </div>
-                  </div>
-                  {/* Toggle Switch */}
-                  <div className={`w-10 h-6 rounded-full relative transition-colors ${chat.isMuted ? 'bg-wa-teal' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                      <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full shadow-sm transition-transform ${chat.isMuted ? 'translate-x-4' : ''}`}></div>
-                  </div>
-              </div>
-              <div className="px-4 py-4 flex items-center justify-between cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 border-b border-gray-100 dark:border-gray-800">
-                  <div className="flex items-center gap-4">
-                      <div className="text-[#667781] dark:text-gray-400"><Music size={20} /></div>
-                      <div className="flex flex-col">
-                          <span className="text-base text-[#111b21] dark:text-gray-100">Custom notifications</span>
-                      </div>
-                  </div>
-              </div>
-              <div className="px-4 py-4 flex items-center justify-between cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50" onClick={() => navigate(`/chat/${chatId}`)}>
-                  <div className="flex items-center gap-4">
-                      <div className="text-[#667781] dark:text-gray-400"><ImageIcon size={20} /></div>
-                      <div className="flex flex-col">
-                          <span className="text-base text-[#111b21] dark:text-gray-100">Media visibility</span>
-                      </div>
-                  </div>
-              </div>
-          </div>
-
-          <div className={`${cardBgClass} mb-3`}>
-              <div className="px-4 py-4 flex items-center justify-between cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 border-b border-gray-100 dark:border-gray-800">
-                  <div className="flex items-center gap-4">
-                      <div className="text-[#667781] dark:text-gray-400"><Shield size={20} /></div>
-                      <div className="flex flex-col">
-                          <span className="text-base text-[#111b21] dark:text-gray-100">Encryption</span>
-                          <span className="text-xs text-[#667781] dark:text-gray-500">Messages and calls are end-to-end encrypted. Tap to verify.</span>
-                      </div>
-                  </div>
-              </div>
-              <div className="px-4 py-4 flex items-center justify-between cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 border-b border-gray-100 dark:border-gray-800">
-                  <div className="flex items-center gap-4">
-                      <div className="text-[#667781] dark:text-gray-400"><Clock size={20} /></div>
-                      <div className="flex flex-col">
-                          <span className="text-base text-[#111b21] dark:text-gray-100">Disappearing messages</span>
-                          <span className="text-xs text-[#667781] dark:text-gray-500">Off</span>
-                      </div>
-                  </div>
-              </div>
-              <div 
-                  className="px-4 py-4 flex items-center justify-between cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50"
-                  onClick={handleChatLockClick}
-              >
-                  <div className="flex items-center gap-4">
-                      <div className="text-[#667781] dark:text-gray-400"><Lock size={20} /></div>
-                      <div className="flex flex-col">
-                          <span className="text-base text-[#111b21] dark:text-gray-100">Chat Lock</span>
-                          <span className="text-xs text-[#667781] dark:text-gray-500">
-                              {chat.isLocked ? 'On' : 'Off'}
-                          </span>
-                      </div>
-                  </div>
-                  <div className={`w-10 h-6 rounded-full relative transition-colors ${chat.isLocked ? 'bg-wa-teal' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                      <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full shadow-sm transition-transform ${chat.isLocked ? 'translate-x-4' : ''}`}></div>
-                  </div>
-              </div>
-          </div>
-
-          {/* Group Participants */}
-          {isGroup && (
-              <div className={`${cardBgClass} mb-3`}>
-                  <div className="px-4 py-3 flex justify-between items-center">
-                      <span className="text-sm text-[#667781] dark:text-gray-400 font-medium">
-                          {chat.groupParticipants?.length} participants
-                      </span>
-                      <Search size={18} className="text-[#667781] dark:text-gray-400" />
+          {/* PRIVATE TAB CONTENT */}
+          {topTab === 'private' && (
+              <div className="animate-in fade-in slide-in-from-right-2 duration-200">
+                  <div className="mx-4 mb-4 p-4 bg-blue-50/90 dark:bg-blue-900/40 rounded-lg border border-blue-100 dark:border-blue-900/30 flex gap-3 backdrop-blur-sm">
+                       <Shield size={24} className="text-blue-500 shrink-0" />
+                       <div className="flex-col">
+                           <h3 className="text-sm font-bold text-blue-700 dark:text-blue-400 mb-1">Private Secure Zone</h3>
+                           <p className="text-xs text-blue-600 dark:text-blue-300">
+                               Items in this tab are encrypted and require authentication to view.
+                           </p>
+                       </div>
                   </div>
 
-                  {canAddParticipants && (
-                      <div 
-                          onClick={() => setShowAddParticipants(true)}
-                          className="flex items-center gap-4 px-4 py-3 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50"
+                  {renderMediaSection(true)}
+
+                  <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm mb-3 shadow-sm transition-colors px-6 py-4 mt-3 rounded-lg">
+                      <div className="flex items-center gap-4 opacity-50">
+                          <div className="w-6 flex justify-center text-wa-gray dark:text-gray-400"><EyeOff size={22} /></div>
+                          <div className="flex-1">
+                              <h3 className="text-base text-[#111b21] dark:text-gray-100">Hidden Messages</h3>
+                              <p className="text-xs text-[#667781] dark:text-gray-500">
+                                  {chat.hiddenDates?.length || 0} locked dates found
+                              </p>
+                          </div>
+                      </div>
+                  </div>
+                  
+                  <div className="bg-white/90 dark:bg-wa-dark-header/90 backdrop-blur-sm shadow-sm transition-colors px-6 py-4 rounded-lg">
+                      <button 
+                        onClick={() => { setIsPrivateUnlocked(false); setTopTab('public'); }}
+                        className="w-full py-2 border border-wa-teal text-wa-teal rounded-full font-medium text-sm hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 transition-colors"
                       >
-                          <div className="w-10 h-10 rounded-full bg-wa-teal flex items-center justify-center text-white">
-                              <UserPlus size={20} />
-                          </div>
-                          <span className="text-base text-[#111b21] dark:text-gray-100">Add participants</span>
-                      </div>
-                  )}
-
-                  <div className="flex items-center gap-4 px-4 py-3 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50">
-                      <div className="w-10 h-10 rounded-full bg-wa-teal/10 flex items-center justify-center text-wa-teal">
-                          <Link size={20} />
-                      </div>
-                      <span className="text-base text-[#111b21] dark:text-gray-100">Invite via link</span>
+                          Lock Private View
+                      </button>
                   </div>
-
-                  {chat.groupParticipants?.map(pid => {
-                      const p = users[pid];
-                      const role = chat.groupRoles?.[pid];
-                      return (
-                          <div key={pid} className="flex items-center gap-4 px-4 py-3 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 border-t border-gray-100 dark:border-gray-800">
-                              <img src={p?.avatar} alt={p?.name} className="w-10 h-10 rounded-full object-cover" />
-                              <div className="flex-1 flex justify-between items-center">
-                                  <div className="flex flex-col">
-                                      <span className="text-base text-[#111b21] dark:text-gray-100 font-normal">
-                                          {pid === currentUserId ? 'You' : p?.name}
-                                      </span>
-                                      <span className="text-xs text-[#667781] dark:text-gray-500">{p?.about?.slice(0, 30)}</span>
-                                  </div>
-                                  {role && role !== 'member' && (
-                                      <span className="text-xs text-wa-teal border border-wa-teal/30 px-1.5 py-0.5 rounded bg-wa-teal/5 capitalize">
-                                          {role}
-                                      </span>
-                                  )}
-                              </div>
-                          </div>
-                      );
-                  })}
               </div>
           )}
-
-          {/* Block / Exit */}
-          <div className={`${cardBgClass} mb-10`}>
-              {isGroup ? (
-                  <div className="flex items-center gap-4 px-4 py-4 text-red-500 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50">
-                      <LogOut size={20} />
-                      <span className="text-base font-medium">Exit Group</span>
-                  </div>
-              ) : (
-                  <div className="flex items-center gap-4 px-4 py-4 text-red-500 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50">
-                      <Ban size={20} />
-                      <span className="text-base font-medium">Block {contact?.name}</span>
-                  </div>
-              )}
-              <div className="flex items-center gap-4 px-4 py-4 text-red-500 cursor-pointer hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 border-t border-gray-100 dark:border-gray-800">
-                  <Trash2 size={20} />
-                  <span className="text-base font-medium">Report {isGroup ? 'Group' : contact?.name}</span>
-              </div>
-          </div>
       </div>
     </div>
   );
