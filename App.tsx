@@ -49,7 +49,7 @@ const GlobalGameUI = () => {
 };
 
 // Protected Route Wrapper
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+const ProtectedRoute = ({ children }: React.PropsWithChildren) => {
     const { isAuthenticated } = useApp();
     const location = useLocation();
 

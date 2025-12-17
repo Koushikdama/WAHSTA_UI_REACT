@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ArrowLeft, Send, ChevronUp } from 'lucide-react';
-import { StatusUpdate } from '../types';
+import { X, ArrowLeft, Send, ChevronUp, Trash2, Eye } from 'lucide-react';
+import { StatusUpdate, User } from '../types';
 import { useApp } from '../context/AppContext';
 
 interface StatusViewerProps {
@@ -13,12 +13,21 @@ interface StatusViewerProps {
 
 const REACTIONS = ["😂", "😮", "😍", "😢", "👏", "🔥", "🙏", "🎉"];
 
+// Mock viewers data since backend integration isn't fully mocked for this granularity
+const MOCK_VIEWERS = [
+    { id: 'u1', name: 'Alice Johnson', time: 'Just now' },
+    { id: 'u2', name: 'Bob Smith', time: '2 minutes ago' },
+    { id: 'u6', name: 'Fiona Gallagher', time: '15 minutes ago' },
+    { id: 'u8', name: 'Hannah Lee', time: 'Today, 10:30 AM' }
+];
+
 const StatusViewer: React.FC<StatusViewerProps> = ({ updates, initialIndex, onClose }) => {
-  const { users, startChat, addMessage, currentUserId } = useApp();
+  const { users, startChat, addMessage, currentUserId, deleteStatusUpdate } = useApp();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [progress, setProgress] = useState(0);
   const [isReplying, setIsReplying] = useState(false);
   const [replyText, setReplyText] = useState('');
+  const [showViewersList, setShowViewersList] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -27,8 +36,8 @@ const StatusViewer: React.FC<StatusViewerProps> = ({ updates, initialIndex, onCl
 
   useEffect(() => {
     setProgress(0);
-    // Don't auto-advance if replying
-    if (isReplying) return;
+    // Don't auto-advance if replying or viewing viewer list
+    if (isReplying || showViewersList) return;
 
     const intervalTime = 30; 
     const duration = 5000; 
@@ -45,7 +54,7 @@ const StatusViewer: React.FC<StatusViewerProps> = ({ updates, initialIndex, onCl
     }, intervalTime);
 
     return () => clearInterval(timer);
-  }, [currentIndex, updates.length, isReplying]);
+  }, [currentIndex, updates.length, isReplying, showViewersList]);
 
   // Focus input when replying starts
   useEffect(() => {
@@ -83,11 +92,24 @@ const StatusViewer: React.FC<StatusViewerProps> = ({ updates, initialIndex, onCl
       
       setReplyText('');
       setIsReplying(false);
-      // Optional: Auto close or continue viewing? WhatsApp stays on status.
   };
 
   const handleReaction = (emoji: string) => {
       handleSendReply(emoji);
+  };
+
+  const handleDelete = () => {
+      const updateToDelete = updates[currentIndex];
+      deleteStatusUpdate(updateToDelete.id);
+      
+      // If was last item, close
+      if (updates.length === 1) {
+          onClose();
+      } else if (currentIndex === updates.length - 1) {
+          // If deleted last item but others exist, go back
+          setCurrentIndex(prev => prev - 1);
+      }
+      // Else auto advances to next due to re-render of updates prop logic in parent if updated
   };
 
   if (!updates || updates.length === 0 || !updates[currentIndex]) return null;
@@ -95,13 +117,13 @@ const StatusViewer: React.FC<StatusViewerProps> = ({ updates, initialIndex, onCl
   const update = updates[currentIndex];
   const user = users[update.userId];
   const isMe = update.userId === currentUserId;
-  if (!user && !isMe) return null; // Should have user data
+  if (!user && !isMe) return null; 
 
   const bgImage = update.imageUrl || `https://picsum.photos/seed/${update.id}/600/1000`;
   const displayedUser = isMe ? { name: 'My Status', avatar: users[currentUserId].avatar } : user;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in fade-in duration-200 font-sans">
        <div className="flex gap-1 p-2 pt-4 absolute top-0 w-full z-20">
          {updates.map((_, idx) => (
            <div key={idx} className="h-1 flex-1 bg-white/30 rounded-full overflow-hidden">
@@ -126,7 +148,18 @@ const StatusViewer: React.FC<StatusViewerProps> = ({ updates, initialIndex, onCl
                <span className="text-xs opacity-80">{new Date(update.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
              </div>
           </div>
-          <X size={24} className="cursor-pointer hidden md:block hover:opacity-80" onClick={onClose} />
+          <div className="flex items-center gap-4">
+              {isMe && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); handleDelete(); }} 
+                    className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                    title="Delete"
+                  >
+                      <Trash2 size={20} />
+                  </button>
+              )}
+              <X size={24} className="cursor-pointer hidden md:block hover:opacity-80" onClick={onClose} />
+          </div>
        </div>
 
        {/* Navigation Areas */}
@@ -144,11 +177,9 @@ const StatusViewer: React.FC<StatusViewerProps> = ({ updates, initialIndex, onCl
            )}
        </div>
        
-       {/* Reply Section */}
+       {/* Reply Section (For Others) */}
        {!isMe && (
            <div className={`absolute bottom-0 w-full z-30 transition-all duration-300 ${isReplying ? 'bg-black/80 backdrop-blur-md pb-4 pt-2 h-auto' : 'h-24 bg-gradient-to-t from-black/80 to-transparent'}`}>
-                
-                {/* Reactions (Visible only when replying) */}
                 {isReplying && (
                     <div className="flex justify-center gap-4 mb-4 animate-in slide-in-from-bottom-5 duration-300 px-4 flex-wrap">
                         {REACTIONS.map(emoji => (
@@ -163,7 +194,6 @@ const StatusViewer: React.FC<StatusViewerProps> = ({ updates, initialIndex, onCl
                     </div>
                 )}
 
-                {/* Input Area or Trigger */}
                 <div className="px-4 w-full flex flex-col items-center">
                     {isReplying ? (
                         <div className="flex items-center gap-2 w-full max-w-lg">
@@ -198,12 +228,59 @@ const StatusViewer: React.FC<StatusViewerProps> = ({ updates, initialIndex, onCl
            </div>
        )}
        
+       {/* Views Section (For Me) */}
        {isMe && (
-           <div className="absolute bottom-8 w-full flex justify-center z-30">
-               <div className="flex items-center gap-2 text-white/90 bg-black/40 px-4 py-2 rounded-full backdrop-blur-sm">
-                   <span className="text-sm font-medium">Your Status</span>
+           <>
+               <div className="absolute bottom-8 w-full flex flex-col items-center gap-4 z-50 pointer-events-auto">
+                   <div 
+                        onClick={(e) => { e.stopPropagation(); setShowViewersList(true); }}
+                        className="flex items-center gap-2 text-white/90 bg-black/40 px-4 py-2 rounded-full backdrop-blur-sm cursor-pointer hover:bg-black/60 transition-colors"
+                   >
+                       <Eye size={16} />
+                       <span className="text-sm font-medium">{MOCK_VIEWERS.length} views</span> 
+                   </div>
                </div>
-           </div>
+
+               {/* Viewers Bottom Sheet */}
+               {showViewersList && (
+                   <div className="absolute inset-x-0 bottom-0 top-20 z-[60] bg-white dark:bg-[#111b21] rounded-t-2xl shadow-2xl animate-in slide-in-from-bottom-full duration-300 flex flex-col">
+                       <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                           <h3 className="text-lg font-medium text-[#111b21] dark:text-gray-100 flex items-center gap-2">
+                               Viewed by {MOCK_VIEWERS.length}
+                           </h3>
+                           <button onClick={() => setShowViewersList(false)} className="p-2 bg-gray-100 dark:bg-white/10 rounded-full">
+                               <X size={20} className="text-gray-500 dark:text-gray-300" />
+                           </button>
+                       </div>
+                       <div className="flex-1 overflow-y-auto p-2">
+                           {MOCK_VIEWERS.map((viewer) => {
+                               const vUser = (Object.values(users) as User[]).find(u => u.id === viewer.id) || { avatar: 'https://picsum.photos/200' };
+                               return (
+                                   <div key={viewer.id} className="flex items-center gap-4 p-3 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-colors">
+                                       <img src={vUser.avatar} alt="" className="w-10 h-10 rounded-full object-cover" />
+                                       <div className="flex-1">
+                                           <h4 className="text-sm font-medium text-[#111b21] dark:text-gray-100">{viewer.name}</h4>
+                                           <p className="text-xs text-[#667781] dark:text-gray-500">{viewer.time}</p>
+                                       </div>
+                                   </div>
+                               );
+                           })}
+                       </div>
+                       <div className="p-4 border-t border-gray-100 dark:border-gray-800 flex justify-center">
+                           <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDelete();
+                                    setShowViewersList(false);
+                                }}
+                                className="flex items-center gap-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 px-6 py-2 rounded-full transition-colors font-medium"
+                           >
+                               <Trash2 size={18} /> Delete Status Update
+                           </button>
+                       </div>
+                   </div>
+               )}
+           </>
        )}
     </div>,
     document.body

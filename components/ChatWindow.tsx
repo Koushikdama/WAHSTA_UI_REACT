@@ -12,6 +12,7 @@ import MediaCarousel from './media/MediaCarousel';
 import VideoMessage from './media/VideoMessage';
 import DrawingCanvas from './media/DrawingCanvas';
 import PollCreator from './media/PollCreator';
+import MediaEditor from './media/MediaEditor';
 import { PollData, Message } from '../types';
 
 const REACTIONS_LIST = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
@@ -70,7 +71,6 @@ const LinkPreview = ({ text }: { text: string }) => {
     if (!match) return null;
     
     const url = match[0];
-    // Simple mock logic for preview
     const domain = new URL(url).hostname;
     
     return (
@@ -110,9 +110,9 @@ const PollMessage = ({ msg, onVote, currentUserId }: { msg: Message, onVote: (ms
             }
         } else {
             if (currentVotedOptions.includes(optionId)) {
-                newSelection = []; // Toggle off
+                newSelection = []; 
             } else {
-                newSelection = [optionId]; // Switch
+                newSelection = [optionId]; 
             }
         }
         onVote(msg.id, newSelection);
@@ -173,7 +173,6 @@ const ChatWindow = () => {
     
     // Media Preview State
     const [previewMedia, setPreviewMedia] = useState<{ url: string, file: File, type: 'image' | 'video' } | null>(null);
-    const [previewCaption, setPreviewCaption] = useState('');
 
     if (!ctrl.chat) return (
         <div className="flex flex-col items-center justify-center h-full text-gray-500 bg-wa-bg">
@@ -248,28 +247,25 @@ const ChatWindow = () => {
                 const url = URL.createObjectURL(file);
                 const type = file.type.startsWith('video/') ? 'video' : 'image';
                 setPreviewMedia({ url, file, type });
-                setPreviewCaption('');
             } else {
-                // Handle documents or other files directly
                 ctrl.addMessage(ctrl.chatId!, `📄 ${file.name}`, 'text');
             }
         }
-        e.target.value = ''; // Reset input to allow selecting same file again
+        e.target.value = ''; 
     };
 
-    const handleSendMedia = () => {
+    const handleSendMedia = (caption: string) => {
         if (!previewMedia || !ctrl.chatId) return;
         
         ctrl.addMessage(
             ctrl.chatId, 
-            previewCaption, 
+            caption, 
             previewMedia.type, 
             undefined, 
             previewMedia.url
         );
         
         setPreviewMedia(null);
-        setPreviewCaption('');
         ctrl.setShowAttachMenu(false);
     };
 
@@ -294,70 +290,18 @@ const ChatWindow = () => {
             {isDrawing && <DrawingCanvas onClose={() => setIsDrawing(false)} onSend={handleDrawingSend} />}
             {isPolling && <PollCreator onClose={() => setIsPolling(false)} onSend={handlePollSend} />}
 
-            {/* Media Preview Modal */}
+            {/* Media Preview Modal using reusable Editor */}
             {previewMedia && (
-                <div className="fixed inset-0 z-[60] bg-[#0b141a] flex flex-col animate-in fade-in duration-200">
-                    {/* Header */}
-                    <div className="w-full flex items-center justify-between p-4 z-20 absolute top-0 left-0 bg-gradient-to-b from-black/60 to-transparent">
-                        <button onClick={() => setPreviewMedia(null)} className="p-2 rounded-full hover:bg-white/10 text-white transition-colors">
-                            <X size={24} />
-                        </button>
-                        <div className="flex gap-6 text-white mx-auto md:mr-4">
-                            <button className="p-2 rounded-full hover:bg-white/10" title="Crop"><Crop size={20} /></button>
-                            <button className="p-2 rounded-full hover:bg-white/10" title="Add Text"><Type size={20} /></button>
-                            <button className="p-2 rounded-full hover:bg-white/10" title="Draw"><PenTool size={20} /></button>
+                <MediaEditor 
+                    file={previewMedia}
+                    onClose={() => setPreviewMedia(null)}
+                    onSend={handleSendMedia}
+                    footerElement={
+                        <div className="bg-[#2a3942] rounded-full px-3 py-1 text-gray-300 text-xs cursor-pointer hover:bg-[#374248] flex items-center gap-1 truncate max-w-[200px]">
+                            <span className="truncate">{ctrl.chat.isGroup ? ctrl.chat.groupName : ctrl.contact?.name}</span>
                         </div>
-                    </div>
-
-                    {/* Preview Content */}
-                    <div className="flex-1 flex items-center justify-center relative p-4 md:p-12 overflow-hidden bg-black/90">
-                        {previewMedia.type === 'video' ? (
-                            <video 
-                                src={previewMedia.url} 
-                                controls 
-                                className="max-h-[80vh] max-w-full object-contain shadow-2xl rounded-sm"
-                            />
-                        ) : (
-                            <img 
-                                src={previewMedia.url} 
-                                alt="Preview" 
-                                className="max-h-[80vh] max-w-full object-contain shadow-2xl rounded-sm"
-                            />
-                        )}
-                    </div>
-
-                    {/* Caption & Send */}
-                    <div className="bg-[#0b141a] p-3 w-full border-t border-white/10 z-20">
-                        <div className="max-w-4xl mx-auto flex items-end gap-3 pb-2 md:pb-4">
-                            <div className="flex-1 bg-[#2a3942] rounded-full flex items-center px-4 py-2 border border-transparent focus-within:border-gray-500 transition-colors">
-                                <div className="text-gray-400 mr-3 cursor-pointer hover:text-white"><Plus size={24} className="rotate-45" /></div>
-                                <input 
-                                    type="text" 
-                                    placeholder="Add a caption..." 
-                                    className="flex-1 bg-transparent text-white placeholder:text-gray-400 outline-none text-[15px] min-w-0"
-                                    value={previewCaption}
-                                    onChange={(e) => setPreviewCaption(e.target.value)}
-                                    autoFocus
-                                    onKeyDown={(e) => e.key === 'Enter' && handleSendMedia()}
-                                />
-                                <div className="ml-2 w-7 h-7 rounded-full border-2 border-gray-500 flex items-center justify-center text-gray-500 text-[10px] font-bold cursor-pointer hover:bg-white/10 hover:text-white hover:border-white transition-colors">1</div>
-                            </div>
-                            <button 
-                                onClick={handleSendMedia}
-                                className="w-12 h-12 bg-wa-teal rounded-full flex items-center justify-center text-white shadow-lg hover:brightness-110 active:scale-95 transition-all shrink-0"
-                            >
-                                <Send size={20} className="ml-1" />
-                            </button>
-                        </div>
-                        
-                        {/* Recipient Indicator */}
-                        <div className="max-w-4xl mx-auto flex justify-between items-center px-2 mt-1">
-                             <div className="bg-[#2a3942] rounded-full px-3 py-1 text-gray-300 text-xs cursor-pointer hover:bg-[#374248] flex items-center gap-1 truncate max-w-[200px]">
-                                <span className="truncate">{ctrl.chat.isGroup ? ctrl.chat.groupName : ctrl.contact?.name}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                    }
+                />
             )}
 
             {/* Date Lock Modal */}

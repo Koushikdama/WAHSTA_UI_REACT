@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -112,7 +111,7 @@ const ChatList = () => {
 
       {/* When bg image is set, add a subtle gradient overlay for better text contrast */}
       {chatSettings.chatListBackgroundImage && (
-          <div className="fixed inset-0 bg-white/50 dark:bg-black/50 pointer-events-none z-0 backdrop-blur-[2px]"></div>
+          <div className="fixed inset-0 bg-white/30 dark:bg-black/30 pointer-events-none z-0 backdrop-blur-[2px]"></div>
       )}
 
       <div className="relative z-10">
@@ -160,8 +159,8 @@ const ChatList = () => {
                 <div 
                     key={chat.id} 
                     className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors relative group 
-                        ${isActive ? 'bg-[#f0f2f5]/90 dark:bg-[#2a3942]/90' : 'hover:bg-wa-grayBg/80 dark:hover:bg-wa-dark-hover/80 active:bg-[#e9edef]/80 dark:active:bg-wa-dark-paper/80'}
-                        ${chatSettings.chatListBackgroundImage ? 'bg-white/70 dark:bg-black/60 mb-0.5 backdrop-blur-sm' : ''}
+                        ${isActive ? 'bg-[#f0f2f5]/90 dark:bg-[#2a3942]/90' : 'hover:bg-wa-grayBg/50 dark:hover:bg-wa-dark-hover/50 active:bg-[#e9edef]/50 dark:active:bg-wa-dark-paper/50'}
+                        ${chatSettings.chatListBackgroundImage ? 'bg-white/30 dark:bg-black/40 mb-0.5 backdrop-blur-md border-b border-white/10' : ''}
                     `}
                     onClick={() => navigate(`/chat/${chat.id}`)}
                 >

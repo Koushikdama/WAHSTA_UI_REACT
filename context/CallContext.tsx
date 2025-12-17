@@ -14,7 +14,7 @@ interface CallContextType {
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
 
-export const CallProvider = ({ children }: { children: React.ReactNode }) => {
+export const CallProvider = ({ children }: React.PropsWithChildren) => {
   const [activeCall, setActiveCall] = useState<ActiveCall | null>(null);
   const ringTimerRef = useRef<number | null>(null);
 

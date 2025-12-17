@@ -1,7 +1,6 @@
-
 import React, { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Key, User as UserIcon, Bell, Database, HelpCircle, Heart, Moon, Sun, Edit2, Check, X, Camera, Globe, Sparkles, MessageCircle, ArrowLeft, Palette, Type, Lock, Shield, FileText, Image as ImageIcon, Video, Mic, BarChart2, Upload, Trash2 } from 'lucide-react';
+import { Key, User as UserIcon, Bell, Database, HelpCircle, Heart, Moon, Sun, Edit2, Check, X, Camera, Globe, Sparkles, MessageCircle, ArrowLeft, Palette, Type, Lock, Shield, FileText, Image as ImageIcon, Video, Mic, BarChart2, Upload, Trash2, Ban, Plus, Search } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 const LOGO_EFFECTS = [
@@ -9,6 +8,139 @@ const LOGO_EFFECTS = [
     { id: 'shine', label: 'Shine' },
     { id: 'wave', label: 'Wave' }
 ];
+
+const WALLPAPER_PRESETS = [
+    { id: 'doodle', src: "https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png", label: 'Doodle' },
+    { id: 'dark_space', src: "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=600&auto=format&fit=crop&q=60", label: 'Space' },
+    { id: 'nature', src: "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=600&auto=format&fit=crop&q=60", label: 'Nature' },
+    { id: 'abstract', src: "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=600&auto=format&fit=crop&q=60", label: 'Abstract' },
+    { id: 'geometric', src: "https://images.unsplash.com/photo-1550100136-e074f0142664?w=600&auto=format&fit=crop&q=60", label: 'Geometric' },
+    { id: 'texture', src: "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=600&auto=format&fit=crop&q=60", label: 'Texture' }
+];
+
+const BlockedContactsScreen = ({ onClose }: { onClose: () => void }) => {
+    const { users, currentUserId } = useApp();
+    // Simulate blocked users with local state for UI demonstration
+    const [blockedIds, setBlockedIds] = useState<string[]>(['u12', 'u14', 'u4']); // Liam, Noah, Diana
+    const [isAdding, setIsAdding] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const handleUnblock = (id: string) => {
+        setBlockedIds(prev => prev.filter(uid => uid !== id));
+    };
+
+    const handleBlock = (id: string) => {
+        setBlockedIds(prev => [...prev, id]);
+        setIsAdding(false);
+        setSearchQuery('');
+    };
+
+    // Filter users for the add screen
+    const availableUsers = Object.values(users).filter(user => 
+        user.id !== currentUserId && 
+        !blockedIds.includes(user.id) &&
+        (user.name.toLowerCase().includes(searchQuery.toLowerCase()) || user.phone.includes(searchQuery))
+    );
+
+    if (isAdding) {
+        return (
+            <div className="absolute inset-0 z-20 bg-white dark:bg-wa-dark-bg flex flex-col animate-in slide-in-from-right duration-200">
+                {/* Header for Adding */}
+                <div className="h-[60px] bg-wa-teal dark:bg-wa-dark-header flex items-center px-4 shrink-0 shadow-sm text-white">
+                    <button onClick={() => { setIsAdding(false); setSearchQuery(''); }} className="mr-3 p-1 rounded-full active:bg-white/10">
+                        <ArrowLeft size={24} />
+                    </button>
+                    <h2 className="text-xl font-medium">Add to Restricted</h2>
+                </div>
+                
+                {/* Search Bar */}
+                <div className="p-2 border-b border-wa-border dark:border-wa-dark-border bg-white dark:bg-wa-dark-bg">
+                   <div className="bg-wa-grayBg dark:bg-wa-dark-input rounded-lg px-4 py-2 flex items-center gap-4 text-wa-gray dark:text-gray-400 h-9 transition-colors">
+                     <Search size={18} />
+                     <input 
+                       autoFocus
+                       type="text" 
+                       placeholder="Search name or number..." 
+                       className="bg-transparent outline-none text-sm w-full text-black dark:text-white placeholder:text-wa-gray dark:placeholder:text-gray-500"
+                       value={searchQuery}
+                       onChange={(e) => setSearchQuery(e.target.value)}
+                     />
+                   </div>
+                </div>
+
+                {/* List of users to block */}
+                <div className="flex-1 overflow-y-auto">
+                    {availableUsers.map(user => (
+                        <div key={user.id} onClick={() => handleBlock(user.id)} className="flex items-center gap-4 px-4 py-3 cursor-pointer hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover transition-colors border-b border-wa-border dark:border-gray-800 last:border-0">
+                            <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full object-cover" />
+                            <div className="flex-1 min-w-0">
+                                <h3 className="text-[17px] text-[#111b21] dark:text-gray-100 font-medium">{user.name}</h3>
+                                <p className="text-[14px] text-[#667781] dark:text-gray-500 truncate">{user.about}</p>
+                            </div>
+                        </div>
+                    ))}
+                    {availableUsers.length === 0 && (
+                        <div className="p-8 text-center text-gray-500 text-sm">No contacts found matching "{searchQuery}"</div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="absolute inset-0 z-20 bg-white dark:bg-wa-dark-bg flex flex-col animate-in slide-in-from-right duration-200">
+            {/* Header */}
+            <div className="h-[60px] bg-wa-teal dark:bg-wa-dark-header flex items-center px-4 shrink-0 shadow-sm text-white">
+                <button onClick={onClose} className="mr-3 p-1 rounded-full active:bg-white/10">
+                    <ArrowLeft size={24} />
+                </button>
+                <h2 className="text-xl font-medium">Restricted Accounts</h2>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+                <div className="text-sm text-[#667781] dark:text-gray-400 mb-4 px-2">
+                    Blocked contacts will no longer be able to call you or send you messages.
+                </div>
+
+                <div className="bg-white dark:bg-wa-dark-paper rounded-lg shadow-sm border border-wa-border dark:border-gray-700 overflow-hidden">
+                    {blockedIds.length === 0 ? (
+                        <div className="p-8 text-center text-gray-500 text-sm">
+                            No restricted accounts.
+                        </div>
+                    ) : (
+                        blockedIds.map(id => {
+                            const user = users[id];
+                            if (!user) return null;
+                            return (
+                                <div key={id} className="flex items-center gap-4 p-4 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                                    <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full object-cover grayscale opacity-70" />
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="text-[#111b21] dark:text-gray-100 font-medium truncate">{user.name}</h3>
+                                        <p className="text-xs text-[#667781] dark:text-gray-500 truncate">{user.phone}</p>
+                                    </div>
+                                    <button 
+                                        onClick={() => handleUnblock(id)}
+                                        className="text-xs font-medium text-red-500 border border-red-200 dark:border-red-900/30 px-3 py-1.5 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                    >
+                                        Unblock
+                                    </button>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+                
+                <div 
+                    onClick={() => setIsAdding(true)}
+                    className="mt-6 flex items-center gap-4 px-4 py-3 text-[#111b21] dark:text-gray-200 cursor-pointer hover:bg-wa-grayBg dark:hover:bg-wa-dark-hover rounded-lg transition-colors border border-dashed border-gray-300 dark:border-gray-700"
+                >
+                    <div className="w-6 flex justify-center"><Plus size={20} className="text-[#667781] dark:text-gray-400" /></div>
+                    <span className="text-sm font-medium">Add to restricted list...</span>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const PasswordSettingsScreen = ({ onClose }: { onClose: () => void }) => {
     const { securitySettings, updateSecuritySettings } = useApp();
@@ -168,6 +300,7 @@ const ChatSettingsScreen = ({ onClose }: { onClose: () => void }) => {
     const chatListBgInputRef = useRef<HTMLInputElement>(null);
     const contactInfoBgInputRef = useRef<HTMLInputElement>(null);
     const [error, setError] = useState<string | null>(null);
+    const [activeBgTab, setActiveBgTab] = useState<'chatList' | 'contactInfo'>('chatList');
 
     const getFontSizeClass = () => {
         switch(chatSettings.fontSize) {
@@ -262,6 +395,102 @@ const ChatSettingsScreen = ({ onClose }: { onClose: () => void }) => {
                     </div>
                 </div>
 
+                {/* Background Images */}
+                <div className="mb-8 px-2">
+                    <div className="flex items-center gap-2 mb-3">
+                         <ImageIcon size={20} className="text-wa-gray" />
+                         <h3 className="text-base font-medium text-[#111b21] dark:text-gray-100">Wallpapers</h3>
+                    </div>
+
+                    {/* Tab Switcher */}
+                    <div className="flex bg-gray-100 dark:bg-wa-dark-header rounded-lg p-1 mb-4">
+                        <button 
+                            onClick={() => setActiveBgTab('chatList')}
+                            className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${activeBgTab === 'chatList' ? 'bg-white dark:bg-wa-dark-paper text-wa-teal shadow-sm' : 'text-gray-500'}`}
+                        >
+                            Chat List
+                        </button>
+                        <button 
+                            onClick={() => setActiveBgTab('contactInfo')}
+                            className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${activeBgTab === 'contactInfo' ? 'bg-white dark:bg-wa-dark-paper text-wa-teal shadow-sm' : 'text-gray-500'}`}
+                        >
+                            Contact Info
+                        </button>
+                    </div>
+                    
+                    {error && (
+                        <div className="mb-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm flex items-center gap-2">
+                            <X size={16} /> {error}
+                        </div>
+                    )}
+                    
+                    <div className="grid grid-cols-3 gap-3">
+                        {/* Upload Option */}
+                        <div 
+                            onClick={() => (activeBgTab === 'chatList' ? chatListBgInputRef : contactInfoBgInputRef).current?.click()}
+                            className="aspect-[3/4] rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group"
+                        >
+                            <Upload size={24} className="text-gray-400 group-hover:text-wa-teal mb-2" />
+                            <span className="text-xs text-gray-500 font-medium">Upload</span>
+                        </div>
+
+                        {/* Reset/Default Option */}
+                        <div 
+                            onClick={() => updateChatSettings(activeBgTab === 'chatList' ? { chatListBackgroundImage: null } : { contactInfoBackgroundImage: null })}
+                            className={`aspect-[3/4] rounded-lg border-2 cursor-pointer flex flex-col items-center justify-center transition-all ${
+                                (activeBgTab === 'chatList' ? !chatSettings.chatListBackgroundImage : !chatSettings.contactInfoBackgroundImage)
+                                ? 'border-wa-teal bg-teal-50 dark:bg-teal-900/20'
+                                : 'border-transparent bg-gray-100 dark:bg-wa-dark-header'
+                            }`}
+                        >
+                            <div className="w-8 h-8 rounded-full border border-gray-300 bg-white dark:bg-gray-800 mb-2"></div>
+                            <span className="text-xs text-gray-500 font-medium">Default</span>
+                        </div>
+
+                        {/* Presets */}
+                        {WALLPAPER_PRESETS.map(preset => {
+                            const currentBg = activeBgTab === 'chatList' ? chatSettings.chatListBackgroundImage : chatSettings.contactInfoBackgroundImage;
+                            const isSelected = currentBg === preset.src;
+                            
+                            return (
+                                <div 
+                                    key={preset.id}
+                                    onClick={() => updateChatSettings(activeBgTab === 'chatList' ? { chatListBackgroundImage: preset.src } : { contactInfoBackgroundImage: preset.src })}
+                                    className={`aspect-[3/4] rounded-lg overflow-hidden border-2 cursor-pointer relative group transition-all ${isSelected ? 'border-wa-teal' : 'border-transparent'}`}
+                                >
+                                    <img src={preset.src} alt={preset.label} className="w-full h-full object-cover" />
+                                    {isSelected && (
+                                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                                            <div className="bg-wa-teal rounded-full p-1">
+                                                <Check size={12} className="text-white" strokeWidth={3} />
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="absolute bottom-0 left-0 w-full bg-black/50 p-1">
+                                        <p className="text-[10px] text-white text-center font-medium truncate">{preset.label}</p>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+
+                    {/* Hidden Inputs */}
+                    <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        ref={chatListBgInputRef}
+                        onChange={(e) => handleFileChange(e, 'chatList')}
+                    />
+                    <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        ref={contactInfoBgInputRef}
+                        onChange={(e) => handleFileChange(e, 'contactInfo')}
+                    />
+                </div>
+
                 {/* App Color */}
                 <div className="mb-8 px-2">
                     <div className="flex items-center gap-2 mb-3">
@@ -304,94 +533,6 @@ const ChatSettingsScreen = ({ onClose }: { onClose: () => void }) => {
                                 style={{ backgroundColor: color }}
                             />
                         ))}
-                    </div>
-                </div>
-
-                {/* Background Images */}
-                <div className="mb-8 px-2">
-                    <div className="flex items-center gap-2 mb-3">
-                         <ImageIcon size={20} className="text-wa-gray" />
-                         <h3 className="text-base font-medium text-[#111b21] dark:text-gray-100">Custom Backgrounds</h3>
-                    </div>
-                    
-                    {error && (
-                        <div className="mb-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm flex items-center gap-2">
-                            <X size={16} /> {error}
-                        </div>
-                    )}
-                    
-                    {/* Chat List Background */}
-                    <div className="mb-4">
-                        <label className="text-sm text-[#54656f] dark:text-gray-400 mb-2 block">Chat List Background</label>
-                        <div className="flex items-center gap-3">
-                            <div className="w-16 h-16 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-white/5 overflow-hidden flex items-center justify-center relative group">
-                                {chatSettings.chatListBackgroundImage ? (
-                                    <img src={chatSettings.chatListBackgroundImage} alt="Chat List Bg" className="w-full h-full object-cover" />
-                                ) : (
-                                    <span className="text-xs text-gray-400">None</span>
-                                )}
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <input 
-                                    type="file" 
-                                    accept="image/*" 
-                                    className="hidden" 
-                                    ref={chatListBgInputRef}
-                                    onChange={(e) => handleFileChange(e, 'chatList')}
-                                />
-                                <button 
-                                    onClick={() => chatListBgInputRef.current?.click()}
-                                    className="px-4 py-1.5 bg-wa-teal text-white text-xs rounded-full shadow-sm hover:brightness-110 flex items-center gap-2"
-                                >
-                                    <Upload size={14} /> Upload
-                                </button>
-                                {chatSettings.chatListBackgroundImage && (
-                                    <button 
-                                        onClick={() => updateChatSettings({ chatListBackgroundImage: null })}
-                                        className="px-4 py-1.5 bg-red-100 text-red-600 text-xs rounded-full hover:bg-red-200 flex items-center gap-2"
-                                    >
-                                        <Trash2 size={14} /> Reset
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Contact Info Background */}
-                    <div>
-                        <label className="text-sm text-[#54656f] dark:text-gray-400 mb-2 block">Contact Info Background</label>
-                        <div className="flex items-center gap-3">
-                            <div className="w-16 h-16 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-white/5 overflow-hidden flex items-center justify-center relative group">
-                                {chatSettings.contactInfoBackgroundImage ? (
-                                    <img src={chatSettings.contactInfoBackgroundImage} alt="Contact Info Bg" className="w-full h-full object-cover" />
-                                ) : (
-                                    <span className="text-xs text-gray-400">None</span>
-                                )}
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <input 
-                                    type="file" 
-                                    accept="image/*" 
-                                    className="hidden" 
-                                    ref={contactInfoBgInputRef}
-                                    onChange={(e) => handleFileChange(e, 'contactInfo')}
-                                />
-                                <button 
-                                    onClick={() => contactInfoBgInputRef.current?.click()}
-                                    className="px-4 py-1.5 bg-wa-teal text-white text-xs rounded-full shadow-sm hover:brightness-110 flex items-center gap-2"
-                                >
-                                    <Upload size={14} /> Upload
-                                </button>
-                                {chatSettings.contactInfoBackgroundImage && (
-                                    <button 
-                                        onClick={() => updateChatSettings({ contactInfoBackgroundImage: null })}
-                                        className="px-4 py-1.5 bg-red-100 text-red-600 text-xs rounded-full hover:bg-red-200 flex items-center gap-2"
-                                    >
-                                        <Trash2 size={14} /> Reset
-                                    </button>
-                                )}
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -625,6 +766,7 @@ const SettingsTab = () => {
   const [showChatSettings, setShowChatSettings] = useState(false);
   const [showPasswordSettings, setShowPasswordSettings] = useState(false);
   const [showStorageSettings, setShowStorageSettings] = useState(false);
+  const [showBlockedSettings, setShowBlockedSettings] = useState(false);
 
   const LANGUAGES = appConfig?.languages || ['English'];
 
@@ -663,6 +805,10 @@ const SettingsTab = () => {
 
   if (showStorageSettings) {
       return <StorageSettingsScreen onClose={() => setShowStorageSettings(false)} />;
+  }
+
+  if (showBlockedSettings) {
+      return <BlockedContactsScreen onClose={() => setShowBlockedSettings(false)} />;
   }
 
   return (
@@ -873,6 +1019,13 @@ const SettingsTab = () => {
                 icon={<Key size={24}/>} 
                 label="Security" 
                 sub="Manage Passwords" 
+            />
+
+            <SettingItem 
+                onClick={() => setShowBlockedSettings(true)}
+                icon={<Ban size={24}/>} 
+                label="Restricted Accounts" 
+                sub="Manage blocked contacts" 
             />
             
             <SettingItem icon={<UserIcon size={24}/>} label="Privacy" sub="Block contacts, disappearing messages" />

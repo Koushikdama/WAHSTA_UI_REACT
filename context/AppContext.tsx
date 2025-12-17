@@ -37,6 +37,7 @@ interface AppContextType {
   appConfig?: AppConfig;
   startChat: (contactId: string) => string;
   createGroup: (groupName: string, participantIds: string[]) => string;
+  addGroupParticipants: (chatId: string, participantIds: string[]) => void;
   updateGroupSettings: (chatId: string, settings: Partial<GroupSettings>) => void;
   updateGroupRole: (chatId: string, userId: string, role: GroupRole) => void;
   addMessage: (chatId: string, text: string, type: MessageType, replyToId?: string, mediaUrl?: string, duration?: string, pollData?: PollData) => void;
@@ -50,6 +51,7 @@ interface AppContextType {
   toggleChatLock: (chatId: string) => void;
   toggleDateLock: (chatId: string, dateString: string) => void;
   addStatusUpdate: (status: StatusUpdate) => void;
+  deleteStatusUpdate: (statusId: string) => void;
   loading: boolean;
 }
 
@@ -73,7 +75,7 @@ const DEFAULT_SECURITY_SETTINGS: SecuritySettings = {
 
 const DEFAULT_USER: User = { id: 'me', name: 'User', avatar: '', about: '', phone: '' };
 
-export const AppProvider = ({ children }: { children: React.ReactNode }) => {
+export const AppProvider = ({ children }: React.PropsWithChildren) => {
   const { data, loading: dataLoading } = useChatData();
 
   // Auth State - Default to TRUE to bypass login for testing
@@ -281,9 +283,9 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
           groupRoles: groupRoles,
           groupSettings: { 
               editInfo: 'all', 
-              sendMessages: 'all',
-              addMembers: 'all',
-              approveMembers: false
+              sendMessages: 'all', 
+              addMembers: 'all', 
+              approveMembers: false 
           },
           timestamp: new Date().toISOString()
       };
@@ -307,6 +309,49 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       }));
 
       return newChatId;
+  };
+
+  const addGroupParticipants = (chatId: string, participantIds: string[]) => {
+      setChats(prev => prev.map(c => {
+          if (c.id === chatId && c.isGroup) {
+              const currentParticipants = c.groupParticipants || [];
+              const newIds = participantIds.filter(id => !currentParticipants.includes(id));
+              if (newIds.length === 0) return c;
+
+              const updatedParticipants = [...currentParticipants, ...newIds];
+              const updatedRoles = { ...c.groupRoles };
+              newIds.forEach(id => {
+                  updatedRoles[id] = 'member';
+              });
+
+              return {
+                  ...c,
+                  groupParticipants: updatedParticipants,
+                  groupRoles: updatedRoles
+              };
+          }
+          return c;
+      }));
+
+      // Add system message
+      if (participantIds.length > 0) {
+          const names = participantIds.map(id => users[id]?.name || 'Someone').join(', ');
+          const sysMsgId = `m_add_${Date.now()}`;
+          
+          setMessages(prev => ({
+              ...prev,
+              [chatId]: [...(prev[chatId] || []), {
+                  id: sysMsgId,
+                  chatId,
+                  senderId: 'system',
+                  text: `You added ${names}`,
+                  timestamp: new Date().toISOString(),
+                  status: 'read',
+                  type: 'text',
+                  isPinned: false
+              }]
+          }));
+      }
   };
 
   const updateGroupSettings = (chatId: string, settings: Partial<GroupSettings>) => {
@@ -514,6 +559,10 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       setStatusUpdates(prev => [status, ...prev]);
   };
 
+  const deleteStatusUpdate = (statusId: string) => {
+      setStatusUpdates(prev => prev.filter(s => s.id !== statusId));
+  };
+
   if (dataLoading) {
      return (
         <div className="flex flex-col items-center justify-center h-screen bg-[#EFEAE2] dark:bg-[#111b21] gap-4">
@@ -558,6 +607,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         appConfig: data?.appConfig,
         startChat,
         createGroup,
+        addGroupParticipants,
         updateGroupSettings,
         updateGroupRole,
         addMessage,
@@ -571,6 +621,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         toggleChatLock,
         toggleDateLock,
         addStatusUpdate,
+        deleteStatusUpdate,
         loading: dataLoading
     }}>
       {children}
